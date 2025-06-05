@@ -69,6 +69,7 @@ def add_cover_to_pdf(cover_buffer, original_path, output_path):
     
     # Add the original pages
     for page in original_reader.pages:
+        page.compress_content_streams()  # Lossless compression.  This is CPU intensive!
         writer.add_page(page)
     
     # Write to the output file

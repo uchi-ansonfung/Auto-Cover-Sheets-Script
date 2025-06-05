@@ -1,4 +1,5 @@
-('C:\\Users\\anson\\Downloads\\build\\coversheets\\PYZ-00.pyz',
+('C:\\Users\\anson\\OneDrive\\Documents\\Auto Cover Sheets '
+ 'Script\\build\\coversheets\\PYZ-00.pyz',
  [('PIL',
    'C:\\Users\\anson\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PIL\\__init__.py',
    'PYMODULE'),
