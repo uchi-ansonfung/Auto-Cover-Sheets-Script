@@ -4,7 +4,7 @@
 a = Analysis(
     ['coversheets-ocr.py'],
     pathex=[],
-    binaries=[],
+    binaries=['C:\Program Files\Tesseract-OCR'],
     datas=[],
     hiddenimports=[],
     hookspath=[],
