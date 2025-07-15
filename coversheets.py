@@ -10,7 +10,7 @@ from PyPDF2 import PdfReader, PdfWriter
 import tkinter as tk
 from tkinter import filedialog
 
-print(f"Automatic Exhibit Cover Sheets v0.1.  Anson Fung")
+print(f"Automatic Exhibit Cover Sheets v0.3.  Anson Fung")
 
 
 def create_cover_sheet(filename):
@@ -30,7 +30,7 @@ def create_cover_sheet(filename):
     styles = getSampleStyleSheet()
     style = styles['Normal']
     style.fontName = 'Times-Bold'
-    style.fontSize = 20
+    style.fontSize = 36
     style.leading = 28
     style.alignment = TA_CENTER  # Center alignment
     
