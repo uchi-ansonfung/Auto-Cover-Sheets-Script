@@ -10,12 +10,12 @@ from PyPDF2 import PdfReader, PdfWriter
 import tkinter as tk
 from tkinter import filedialog
 
-print(f"Automatic Exhibit Cover Sheets v0.3.  Anson Fung")
+print(f"Automatic Exhibit Cover Sheets v0.4.  Anson Fung")
 
 
 def create_cover_sheet(filename):
     """
-    Creates a cover sheet PDF in memory with the given filename (without extension) centered on the page using Times New Roman size 20.
+    Creates a cover sheet PDF in memory with the given filename (without extension) centered on the page using Times 36.
     The text is wrapped if it exceeds the specified width.
     
     :param filename: The filename to display on the cover sheet.
@@ -87,7 +87,7 @@ def main(folder_path):
             original_path = os.path.join(folder_path, filename)
             print(f"Processing {filename}...")
             cover_buffer = create_cover_sheet(filename)
-            output_path = os.path.join(folder_path, f"cover_{filename}")
+            output_path = os.path.join(folder_path, f"+{filename}")
             add_cover_to_pdf(cover_buffer, original_path, output_path)
             print(f"Saved {output_path}")
 
