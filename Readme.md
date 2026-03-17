@@ -7,7 +7,7 @@
 2. Open the program.
 3. In popup file explorer window, navigate to the folder created in step 1 and click Select Folder.
 4. Wait.  The program will close once all PDFs have been processed.
-5. Navigate to the folder specified in step 3 and locate the processed PDFs, the filenames of which are prepended with "cover_" (*e.g.*, cover_Exhibit A.pdf).
+5. Navigate to the folder specified in step 3 and locate the processed PDFs, the filenames of which are prepended with "+" (*e.g.*, +Exhibit A.pdf).
 
 # What This Program Does
 * Adds letter-sized coversheet with centered text corresponding to the filename in 36-point Times New Roman Bold.
