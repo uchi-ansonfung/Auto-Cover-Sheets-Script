@@ -23,6 +23,22 @@ def test_add_cover_prepends_page(sample_pdf: Path, tmp_path: Path) -> None:
     assert len(result.pages) == 2  # cover + original body
 
 
+def test_add_cover_with_compress_succeeds(sample_pdf: Path, tmp_path: Path) -> None:
+    """compress_content_streams must run on writer pages, not reader pages."""
+    cover = create_cover_sheet("Exhibit A")
+    out = tmp_path / "+Exhibit A.pdf"
+    add_cover_to_pdf(
+        cover,
+        sample_pdf,
+        out,
+        options=ProcessOptions(compress=True, strip_metadata=True, optimize=True),
+    )
+
+    result = PdfReader(str(out))
+    assert len(result.pages) == 2
+    assert out.stat().st_size > 0
+
+
 def test_true_metadata_strip_removes_info_fields(tmp_path: Path) -> None:
     original = tmp_path / "meta.pdf"
     c = canvas.Canvas(str(original), pagesize=letter)

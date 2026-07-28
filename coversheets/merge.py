@@ -76,10 +76,13 @@ def add_cover_to_pdf(
     writer.add_page(cover_reader.pages[0])
 
     for page in original_reader.pages:
+        # Add first: compress_content_streams requires a PdfWriter-owned page.
+        # Calling it on a PdfReader page raises ValueError ("Page must be part
+        # of a PdfWriter") and can surface AttributeError on ContentStream.
+        writer.add_page(page)
         if compress:
             # Lossless; can be CPU-intensive on large/complex pages.
-            page.compress_content_streams()
-        writer.add_page(page)
+            writer.pages[-1].compress_content_streams()
 
     if optimize:
         optimize_writer(writer)

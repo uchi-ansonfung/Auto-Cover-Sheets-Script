@@ -153,9 +153,9 @@ You can also run the workflow manually (**Actions → Release builds → Run wor
 
 ```bash
 # Tag and publish a release (example)
-git tag v0.8.0
-git push origin v0.8.0
-# Then create a Release from that tag in the GitHub UI (or: gh release create v0.8.0)
+git tag v0.8.3
+git push origin v0.8.3
+# Then create a Release from that tag in the GitHub UI (or: gh release create v0.8.3)
 ```
 
 ## Building locally (optional)
