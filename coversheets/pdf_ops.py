@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -12,6 +13,18 @@ from pypdf import PdfReader, PdfWriter
 
 class DependencyError(RuntimeError):
     """Raised when an optional tool/package is required but missing."""
+
+
+def _closed_temp_pdf(prefix: str) -> Path:
+    """
+    Create an empty temp PDF path with the handle closed.
+
+    ``mkstemp`` returns an open FD; leaving it open breaks replace/unlink on
+    Windows (WinError 32). Always close before returning the path.
+    """
+    fd, name = tempfile.mkstemp(prefix=prefix, suffix=".pdf")
+    os.close(fd)
+    return Path(name)
 
 
 def strip_metadata_writer(writer: PdfWriter) -> None:
@@ -130,9 +143,7 @@ def run_ocr(
         )
 
     language = (language or "eng").strip() or "eng"
-    tmp_path = Path(
-        tempfile.mkstemp(prefix="coversheets_ocr_", suffix=".pdf")[1]
-    )
+    tmp_path = _closed_temp_pdf("coversheets_ocr_")
     try:
         try:
             import ocrmypdf
@@ -209,9 +220,7 @@ def _linearize_with_qpdf(pdf_path: Path) -> Path:
     if not qpdf:
         raise DependencyError("qpdf not found on PATH")
     # qpdf cannot always --replace-input on all platforms; use temp then replace.
-    tmp_path = Path(
-        tempfile.mkstemp(prefix="coversheets_lin_", suffix=".pdf")[1]
-    )
+    tmp_path = _closed_temp_pdf("coversheets_lin_")
     try:
         proc = subprocess.run(
             [qpdf, "--linearize", str(pdf_path), str(tmp_path)],
