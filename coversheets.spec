@@ -1,12 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
-
+# Build: pyinstaller coversheets.spec
 
 a = Analysis(
-    ['coversheets.py'],
+    ['coversheets/__main__.py'],
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['coversheets', 'coversheets.cli', 'coversheets.cover', 'coversheets.merge', 'coversheets.process', 'coversheets.gui', 'coversheets.util', 'coversheets.options', 'coversheets.pdf_ops', 'coversheets.prefs'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

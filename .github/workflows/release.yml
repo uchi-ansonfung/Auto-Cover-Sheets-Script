@@ -1,0 +1,132 @@
+# Build Windows + macOS binaries with PyInstaller and attach them to GitHub Releases.
+#
+# Triggers:
+#   - release published (uploads assets to that release)
+#   - workflow_dispatch (builds only; uploads workflow artifacts for testing)
+#
+# Asset names (VERSION from tag, without leading "v"):
+#   coversheets-<VERSION>-windows-x64.exe
+#   coversheets-<VERSION>-macos-arm64
+#   coversheets-<VERSION>-macos-x64
+
+name: Release builds
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x64
+            ext: .exe
+          - os: macos-latest
+            platform: macos-arm64
+            ext: ""
+          - os: macos-13
+            platform: macos-x64
+            ext: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            # Manual runs: use package version from source.
+            TAG=$(grep -E '^__version__\s*=' coversheets/__init__.py | head -1 | sed -E "s/.*['\"]([^'\"]+)['\"].*/\1/")
+          fi
+          TAG="${TAG#v}"
+          if [ -z "$TAG" ]; then
+            echo "Could not determine version" >&2
+            exit 1
+          fi
+          echo "VERSION=$TAG" >> "$GITHUB_ENV"
+          ASSET="coversheets-${TAG}-${{ matrix.platform }}${{ matrix.ext }}"
+          echo "ASSET_NAME=$ASSET" >> "$GITHUB_ENV"
+          echo "Building asset: $ASSET"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Ensure Tkinter (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          # setup-python wheels may lack _tkinter; brew python-tk provides it.
+          if ! python -c "import tkinter" 2>/dev/null; then
+            brew install python-tk@3.12 || brew install python-tk
+            # Prefer the Homebrew interpreter that has Tk if needed.
+            if ! python -c "import tkinter" 2>/dev/null; then
+              for candidate in \
+                "$(brew --prefix python-tk@3.12 2>/dev/null)/bin/python3.12" \
+                "$(brew --prefix python@3.12 2>/dev/null)/bin/python3.12" \
+                /opt/homebrew/bin/python3.12 \
+                /usr/local/bin/python3.12; do
+                if [ -x "$candidate" ] && "$candidate" -c "import tkinter" 2>/dev/null; then
+                  echo "Using $candidate for Tk support"
+                  dirname "$candidate" >> "$GITHUB_PATH"
+                  break
+                fi
+              done
+            fi
+          fi
+          python -c "import tkinter; print('tkinter OK', tkinter.TkVersion)"
+
+      - name: Install package + PyInstaller
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -c "import coversheets; print('coversheets', coversheets.__version__)"
+
+      - name: Run tests
+        shell: bash
+        run: pytest -q
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          pyinstaller coversheets.spec --noconfirm --clean
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            test -f dist/coversheets.exe
+            cp dist/coversheets.exe "dist/${ASSET_NAME}"
+          else
+            test -f dist/coversheets
+            cp dist/coversheets "dist/${ASSET_NAME}"
+            chmod +x "dist/${ASSET_NAME}"
+          fi
+          ls -la dist/
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ASSET_NAME }}
+          path: dist/${{ env.ASSET_NAME }}
+          if-no-files-found: error
+
+      - name: Attach to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ env.ASSET_NAME }}
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

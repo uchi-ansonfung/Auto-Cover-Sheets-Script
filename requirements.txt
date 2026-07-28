@@ -1,0 +1,5 @@
+# Runtime dependencies (kept in sync with pyproject.toml)
+# Prefer: pip install -e ".[dev]"
+# Optional: pip install -e ".[ocr]" / ".[optimize]" / ".[full]"
+reportlab>=4.0,<5
+pypdf>=4.0,<6

@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coversheets"
+version = "0.8.2"
+description = "Add exhibit cover sheets to PDFs via GUI list or batch CLI"
+readme = "Readme.md"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "Anson Fung" }]
+requires-python = ">=3.10"
+dependencies = [
+    "reportlab>=4.0,<5",
+    "pypdf>=4.0,<6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pyinstaller>=6.0",
+]
+ocr = [
+    "ocrmypdf>=15.0",
+]
+optimize = [
+    "pikepdf>=8.0",
+]
+full = [
+    "ocrmypdf>=15.0",
+    "pikepdf>=8.0",
+]
+
+[project.scripts]
+coversheets = "coversheets.cli:run"
+
+[project.urls]
+Homepage = "https://github.com/uchi-ansonfung/Auto-Cover-Sheets-Script"
+Releases = "https://github.com/uchi-ansonfung/Auto-Cover-Sheets-Script/releases"
+
+[tool.setuptools.packages.find]
+include = ["coversheets*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
