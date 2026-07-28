@@ -8,7 +8,6 @@
 #   coversheets-<VERSION>-windows-x64.exe              (slim one-file)
 #   coversheets-<VERSION>-windows-x64-setup.exe        (full installer: OCR + linearize)
 #   coversheets-<VERSION>-macos-arm64
-#   coversheets-<VERSION>-macos-x64
 
 name: Release builds
 
@@ -34,10 +33,6 @@ jobs:
             full: false
           - os: macos-latest
             platform: macos-arm64
-            ext: ""
-            full: false
-          - os: macos-13
-            platform: macos-x64
             ext: ""
             full: false
 

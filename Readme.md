@@ -35,7 +35,6 @@ pip install -r requirements.txt
    | **`coversheets-<version>-windows-x64-setup.exe`** (recommended) | Windows users who want OCR + Linearize with no extra installs |
    | `coversheets-<version>-windows-x64.exe` | Portable slim Windows app (no bundled OCR engines) |
    | `coversheets-<version>-macos-arm64` | macOS Apple Silicon |
-   | `coversheets-<version>-macos-x64` | macOS Intel |
 
 2. **Windows full installer:** run the setup, accept the defaults (per-user install, Start Menu shortcut). Launch from the Start Menu. OCR (English) and Linearize work out of the box — no Python, Tesseract, or Ghostscript install.
 3. **Slim / portable / macOS:** double-click the binary. Windows SmartScreen may require More info → Run anyway. macOS: right-click → Open the first time (unsigned builds are blocked by Gatekeeper).
@@ -150,14 +149,13 @@ pyproject.toml
 
 Publishing a GitHub Release runs [`.github/workflows/release.yml`](.github/workflows/release.yml), which:
 
-1. Runs tests on Windows + macOS (arm64 and x64)
+1. Runs tests on Windows + macOS (arm64)
 2. Builds slim one-file PyInstaller binaries
 3. Builds the **Windows full installer** (PyInstaller with `pikepdf` + `ocrmypdf`, staged Tesseract + Ghostscript, Inno Setup)
 4. Attaches assets:
    - `coversheets-<version>-windows-x64-setup.exe` ← preferred for end users
    - `coversheets-<version>-windows-x64.exe`
    - `coversheets-<version>-macos-arm64`
-   - `coversheets-<version>-macos-x64`
 
 You can also run the workflow manually (**Actions → Release builds → Run workflow**) to produce downloadable workflow artifacts without creating a release.
 
