@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from coversheets import __author__, __version__
+from coversheets.bundled_tools import configure_bundled_tools
 from coversheets.options import ProcessOptions
 from coversheets.process import process_folder
 
@@ -139,6 +140,9 @@ def options_from_args(args: argparse.Namespace) -> ProcessOptions:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Frozen/installer builds ship Tesseract + Ghostscript next to the exe.
+    configure_bundled_tools()
+
     parser = build_parser()
     args = parser.parse_args(argv)
 

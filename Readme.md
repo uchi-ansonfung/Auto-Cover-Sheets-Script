@@ -28,12 +28,17 @@ pip install -r requirements.txt
 
 ## First run (prebuilt binaries)
 
-1. Download the binary for your OS from the latest [release](https://github.com/uchi-ansonfung/Auto-Cover-Sheets-Script/releases).
-   - Windows: `coversheets-<version>-windows-x64.exe`
-   - macOS Apple Silicon: `coversheets-<version>-macos-arm64`
-   - macOS Intel: `coversheets-<version>-macos-x64`
-2. Windows: dismiss SmartScreen if needed (More info → Run anyway).  
-   macOS: right-click → Open the first time (unsigned builds are blocked by Gatekeeper).
+1. Download from the latest [release](https://github.com/uchi-ansonfung/Auto-Cover-Sheets-Script/releases).
+
+   | Download | Who it’s for |
+   |----------|----------------|
+   | **`coversheets-<version>-windows-x64-setup.exe`** (recommended) | Windows users who want OCR + Linearize with no extra installs |
+   | `coversheets-<version>-windows-x64.exe` | Portable slim Windows app (no bundled OCR engines) |
+   | `coversheets-<version>-macos-arm64` | macOS Apple Silicon |
+   | `coversheets-<version>-macos-x64` | macOS Intel |
+
+2. **Windows full installer:** run the setup, accept the defaults (per-user install, Start Menu shortcut). Launch from the Start Menu. OCR (English) and Linearize work out of the box — no Python, Tesseract, or Ghostscript install.
+3. **Slim / portable / macOS:** double-click the binary. Windows SmartScreen may require More info → Run anyway. macOS: right-click → Open the first time (unsigned builds are blocked by Gatekeeper).
 
 ## Usage (GUI list — default)
 
@@ -130,10 +135,13 @@ coversheets/
   cover.py            # cover sheet generation (ReportLab)
   merge.py            # prepend cover + write
   pdf_ops.py          # metadata strip, OCR, optimize, linearize
+  bundled_tools.py    # frozen/installer Tesseract + Ghostscript PATH
   options.py          # ProcessOptions
   prefs.py            # GUI preference persistence
   process.py          # JobItem + batch processing
   cli.py              # argparse entry point
+installer/windows/    # Inno Setup script
+scripts/              # build_windows_full.ps1
 tests/
 pyproject.toml
 ```
@@ -143,8 +151,10 @@ pyproject.toml
 Publishing a GitHub Release runs [`.github/workflows/release.yml`](.github/workflows/release.yml), which:
 
 1. Runs tests on Windows + macOS (arm64 and x64)
-2. Builds one-file PyInstaller binaries
-3. Attaches them to the release as:
+2. Builds slim one-file PyInstaller binaries
+3. Builds the **Windows full installer** (PyInstaller with `pikepdf` + `ocrmypdf`, staged Tesseract + Ghostscript, Inno Setup)
+4. Attaches assets:
+   - `coversheets-<version>-windows-x64-setup.exe` ← preferred for end users
    - `coversheets-<version>-windows-x64.exe`
    - `coversheets-<version>-macos-arm64`
    - `coversheets-<version>-macos-x64`
@@ -153,12 +163,14 @@ You can also run the workflow manually (**Actions → Release builds → Run wor
 
 ```bash
 # Tag and publish a release (example)
-git tag v0.8.3
-git push origin v0.8.3
-# Then create a Release from that tag in the GitHub UI (or: gh release create v0.8.3)
+git tag v0.8.4
+git push origin v0.8.4
+# Then create a Release from that tag in the GitHub UI (or: gh release create v0.8.4)
 ```
 
 ## Building locally (optional)
+
+### Slim one-file binary
 
 ```bash
 pip install -e ".[dev]"
@@ -166,3 +178,21 @@ pyinstaller coversheets.spec
 # → dist/coversheets.exe  (Windows)
 # → dist/coversheets      (macOS / Linux)
 ```
+
+### Windows full installer (OCR + Linearize)
+
+Requirements: Windows, Python 3.10+, [Inno Setup 6](https://jrsoftware.org/isinfo.php), and either:
+
+- Chocolatey (script can install Tesseract, Ghostscript, Inno Setup), or
+- Those tools already installed so the script can copy them into the payload
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -e ".[full,dev]"
+powershell -ExecutionPolicy Bypass -File scripts\build_windows_full.ps1
+# → dist\coversheets-<version>-windows-x64-setup.exe
+# → dist\windows-full\   (staged payload used by Inno)
+```
+
+The frozen app looks next to `coversheets.exe` for `tesseract\` and `ghostscript\` and puts them on `PATH` automatically (`coversheets/bundled_tools.py`).

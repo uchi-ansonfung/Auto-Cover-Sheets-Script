@@ -12,3 +12,6 @@ build/
 .mypy_cache/
 .ruff_cache/
 .DS_Store
+# Local Inno / full-installer scratch (CI uses dist/)
+installer/windows/Output/
+*.islu

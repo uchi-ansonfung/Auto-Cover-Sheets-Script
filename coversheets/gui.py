@@ -12,6 +12,7 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Any, Sequence
 
 from coversheets import OUTPUT_PREFIX, __author__, __version__
+from coversheets.bundled_tools import configure_bundled_tools
 from coversheets.cover import cover_label_from_filename
 from coversheets.options import ProcessOptions
 from coversheets.pdf_ops import linearize_available, ocr_available
@@ -296,6 +297,7 @@ class CoverSheetsApp(tk.Tk):
 
     def __init__(self, initial_folder: Path | None = None) -> None:
         super().__init__()
+        configure_bundled_tools()
         self.title(f"Automatic Exhibit Cover Sheets v{__version__}")
         self.minsize(780, 480)
 
@@ -436,7 +438,7 @@ class CoverSheetsApp(tk.Tk):
         if not ocr_available():
             ttk.Label(
                 pdf_row2,
-                text="(install coversheets[ocr] + Tesseract)",
+                text="(use Windows full installer, or coversheets[ocr] + Tesseract)",
                 foreground="#888",
             ).pack(side=tk.LEFT, padx=(8, 0))
         elif not linearize_available():
@@ -856,8 +858,9 @@ class CoverSheetsApp(tk.Tk):
         if self.ocr_var.get() and not ocr_available():
             messagebox.showerror(
                 "OCR unavailable",
-                "OCR requires ocrmypdf and Tesseract.\n"
-                "Install with: pip install 'coversheets[ocr]'",
+                "OCR requires ocrmypdf and Tesseract.\n\n"
+                "• Windows: use the full installer release (recommended), or\n"
+                "• pip install 'coversheets[ocr]' and install Tesseract.",
                 parent=self,
             )
             return

@@ -10,6 +10,8 @@ from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter
 
+from coversheets.bundled_tools import configure_bundled_tools, tesseract_on_path
+
 
 class DependencyError(RuntimeError):
     """Raised when an optional tool/package is required but missing."""
@@ -104,17 +106,27 @@ def _try_strip_with_pikepdf(pdf_path: Path) -> bool:
 
 
 def ocr_available() -> bool:
-    """True if the ocrmypdf Python package or CLI is present."""
+    """
+    True if OCR can run: ocrmypdf (package or CLI) plus a Tesseract binary.
+
+    Activates tools bundled next to a frozen/installed binary first.
+    """
+    configure_bundled_tools()
     try:
         import ocrmypdf  # noqa: F401
 
-        return True
+        has_ocrmypdf = True
     except ImportError:
-        return shutil.which("ocrmypdf") is not None
+        has_ocrmypdf = shutil.which("ocrmypdf") is not None
+    if not has_ocrmypdf:
+        return False
+    # Package alone is not enough; ocrmypdf shells out to tesseract.
+    return tesseract_on_path()
 
 
 def linearize_available() -> bool:
     """True if pikepdf is importable or the qpdf binary is on PATH."""
+    configure_bundled_tools()
     try:
         import pikepdf  # noqa: F401
 
@@ -136,10 +148,12 @@ def run_ocr(
     already contain text are skipped when ``skip_text`` is True.
     """
     pdf_path = Path(path)
+    configure_bundled_tools()
     if not ocr_available():
         raise DependencyError(
-            "OCR requires ocrmypdf. Install with: pip install 'coversheets[ocr]' "
-            "(and install Tesseract on your system)."
+            "OCR requires ocrmypdf and Tesseract. "
+            "Install with: pip install 'coversheets[ocr]' and system Tesseract, "
+            "or use the Windows full installer (bundles both)."
         )
 
     language = (language or "eng").strip() or "eng"
