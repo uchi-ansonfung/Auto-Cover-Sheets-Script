@@ -25,6 +25,8 @@ class AppPreferences:
     output_dir: str = ""
     # Window geometry e.g. "900x560+120+80"
     window_geometry: str = "900x560"
+    # GUI appearance: "System" | "Light" | "Dark" (CustomTkinter)
+    appearance_mode: str = "System"
     # Toggles (defaults match ProcessOptions / GUI defaults)
     compress: bool = True
     force: bool = False
@@ -129,6 +131,11 @@ def preferences_from_dict(raw: dict[str, Any]) -> AppPreferences:
         except (TypeError, ValueError):
             continue
     prefs.version = PREFS_VERSION
+    # Normalize appearance_mode to known CustomTkinter values.
+    mode = (prefs.appearance_mode or "System").strip().title()
+    if mode not in {"System", "Light", "Dark"}:
+        mode = "System"
+    prefs.appearance_mode = mode
     return prefs
 
 

@@ -15,11 +15,16 @@ hiddenimports = [
     "coversheets.merge",
     "coversheets.process",
     "coversheets.gui",
+    "coversheets.gui.app",
+    "coversheets.gui.dialogs",
+    "coversheets.gui.job_list",
+    "coversheets.gui.theme",
     "coversheets.util",
     "coversheets.options",
     "coversheets.pdf_ops",
     "coversheets.prefs",
     "coversheets.bundled_tools",
+    "customtkinter",
 ]
 
 datas = []
@@ -37,6 +42,9 @@ def _try_collect(package: str) -> None:
     binaries += pkg_binaries
     hiddenimports += pkg_hidden
 
+
+# CustomTkinter ships theme JSON/assets required at runtime.
+_try_collect("customtkinter")
 
 # Optional extras — only present for full installer / local .[full] builds.
 _try_collect("pikepdf")

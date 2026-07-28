@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "coversheets"
-version = "0.8.4"
+version = "0.9.0"
 description = "Add exhibit cover sheets to PDFs via GUI list or batch CLI"
 readme = "Readme.md"
 license = { text = "GPL-3.0-or-later" }
@@ -13,6 +13,7 @@ requires-python = ">=3.10"
 dependencies = [
     "reportlab>=4.0,<5",
     "pypdf>=4.0,<6",
+    "customtkinter>=5.2,<6",
 ]
 
 [project.optional-dependencies]

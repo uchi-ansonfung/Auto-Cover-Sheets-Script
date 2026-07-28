@@ -2,7 +2,7 @@
 
 Add letter-sized cover sheets to PDFs. Primary UX is a **GUI list** (edit labels, generate with progress). Headless batch mode remains available for scripts.
 
-**v0.8** — PDF options: true metadata strip, optional OCR, optimize, and linearize.
+**v0.9** — GUI rebuilt with CustomTkinter (modern layout, light/dark theme, custom job list).
 
 ## Install (from source)
 
@@ -51,14 +51,14 @@ coversheets /path/to/pdfs
 ```
 
 1. **Open Folder…** or **Add PDFs…** to populate the list.
-2. Edit each **Cover Label** by double-clicking the cell (defaults to the filename without `.pdf`).
-3. Click **Include** to toggle rows; remove rows you don’t want.
+2. Edit each **Cover Label** in the list (defaults to the filename without `.pdf`).
+3. Use the **Include** checkbox on each row; **Remove** selected rows or **Remove All** to clear the list.
 4. Optionally set an **output folder** (empty = write next to each source file).
-5. Choose options, then **Generate Cover Sheets**.
+5. Choose process/PDF options, then **Generate Cover Sheets**.
 6. A **progress window** shows status/log and a **Cancel** button (stops after the current file). A **success dialog** can open the output folder.
 7. Outputs are written **atomically** (temp `.partial` then rename) so crashes don’t leave truncated finals. Default name: `+OriginalName.pdf` (or `+CoverLabel.pdf` with rename). Originals are not modified.
 
-The GUI **remembers preferences** between runs (checkboxes, OCR language, window size, output folder, and last input folder). On launch it reloads the last folder if it still exists. Settings are stored under your user config directory (`~/Library/Application Support/coversheets/` on macOS, `%APPDATA%\\coversheets\\` on Windows, `~/.config/coversheets/` on Linux).
+The GUI **remembers preferences** between runs (checkboxes, OCR language, window size, light/dark/system theme, output folder, and last input folder). On launch it reloads the last folder if it still exists. Settings are stored under your user config directory (`~/Library/Application Support/coversheets/` on macOS, `%APPDATA%\\coversheets\\` on Windows, `~/.config/coversheets/` on Linux).
 
 ### PDF options (GUI + CLI)
 
@@ -131,7 +131,7 @@ pytest
 ```
 coversheets/
   __main__.py         # python -m coversheets
-  gui.py              # tkinter list UI
+  gui/                # CustomTkinter list UI (app, job list, dialogs, theme)
   cover.py            # cover sheet generation (ReportLab)
   merge.py            # prepend cover + write
   pdf_ops.py          # metadata strip, OCR, optimize, linearize
@@ -163,9 +163,9 @@ You can also run the workflow manually (**Actions → Release builds → Run wor
 
 ```bash
 # Tag and publish a release (example)
-git tag v0.8.4
-git push origin v0.8.4
-# Then create a Release from that tag in the GitHub UI (or: gh release create v0.8.4)
+git tag v0.9.0
+git push origin v0.9.0
+# Then create a Release from that tag in the GitHub UI (or: gh release create v0.9.0)
 ```
 
 ## Building locally (optional)

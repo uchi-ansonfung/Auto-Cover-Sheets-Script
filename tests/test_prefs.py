@@ -37,6 +37,7 @@ def test_save_and_load_roundtrip(tmp_path: Path) -> None:
         last_file_dialog_dir=str(tmp_path / "in"),
         output_dir=str(tmp_path / "out"),
         window_geometry="1000x700+10+20",
+        appearance_mode="Dark",
         compress=False,
         force=True,
         rename_to_label=True,
@@ -56,6 +57,7 @@ def test_save_and_load_roundtrip(tmp_path: Path) -> None:
     assert loaded.last_folder == original.last_folder
     assert loaded.output_dir == original.output_dir
     assert loaded.window_geometry == original.window_geometry
+    assert loaded.appearance_mode == "Dark"
     assert loaded.compress is False
     assert loaded.force is True
     assert loaded.rename_to_label is True
@@ -74,6 +76,14 @@ def test_load_missing_file_returns_defaults(tmp_path: Path) -> None:
     assert prefs.compress is True
     assert prefs.optimize is True
     assert prefs.last_folder == ""
+    assert prefs.appearance_mode == "System"
+
+
+def test_appearance_mode_normalized() -> None:
+    prefs = preferences_from_dict({"appearance_mode": "dark"})
+    assert prefs.appearance_mode == "Dark"
+    prefs = preferences_from_dict({"appearance_mode": "nope"})
+    assert prefs.appearance_mode == "System"
 
 
 def test_load_corrupt_json_returns_defaults(tmp_path: Path) -> None:
