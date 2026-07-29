@@ -1,5 +1,7 @@
 # Automatic Exhibit Cover Sheets
 
+![Automatic Exhibit Cover Sheets GUI](assets/gui-screenshot.png)
+
 Add letter-sized cover sheets to PDFs. Primary UX is a **GUI list** (edit labels, generate with progress). Headless batch mode remains available for scripts.
 
 **v0.9** — GUI rebuilt with CustomTkinter (modern layout, light/dark theme, custom job list).
