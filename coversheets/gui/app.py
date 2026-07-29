@@ -1,4 +1,4 @@
-"""Main CustomTkinter window: job list, options, and generate flow."""
+"""Main CustomTkinter window: guided list UI for non-technical users."""
 
 from __future__ import annotations
 
@@ -14,9 +14,20 @@ from tkinter import filedialog, messagebox
 
 from coversheets import OUTPUT_PREFIX, __author__, __version__
 from coversheets.bundled_tools import configure_bundled_tools
+from coversheets.gui.copy import (
+    STEP_LABELS,
+    empty_list_blurb,
+    plain_option_lines,
+    preview_target_index,
+    status_for_jobs,
+)
 from coversheets.gui.dialogs import DoneDialog, ProgressWindow
+from coversheets.gui.dnd import dnd_available, make_dnd_root, register_drop_target
 from coversheets.gui.job_list import JobListFrame
+from coversheets.gui.options_panel import OptionsPanel
+from coversheets.gui.preview import CoverPreview
 from coversheets.gui.theme import APPEARANCE_MODES, apply_appearance, normalize_appearance_mode
+from coversheets.gui.welcome import WelcomeDialog
 from coversheets.options import ProcessOptions
 from coversheets.pdf_ops import linearize_available, ocr_available
 from coversheets.prefs import AppPreferences, load_preferences, save_preferences
@@ -31,15 +42,22 @@ from coversheets.process import (
 from coversheets.util import format_result_summary, resolve_result_folders
 
 
-class CoverSheetsApp(ctk.CTk):
-    """Main window: editable list of PDFs and cover labels."""
+class _CoverSheetsAppBase(ctk.CTk):
+    """Base CTk window (may be mixed with Tk DnD)."""
+
+
+CoverSheetsAppRoot = make_dnd_root(_CoverSheetsAppBase)
+
+
+class CoverSheetsApp(CoverSheetsAppRoot):  # type: ignore[misc, valid-type]
+    """Main window: editable list of PDFs and cover titles."""
 
     def __init__(self, initial_folder: Path | None = None) -> None:
-        apply_appearance("System")  # refined after prefs load
+        apply_appearance("System")
         super().__init__()
         configure_bundled_tools()
         self.title(f"Automatic Exhibit Cover Sheets v{__version__}")
-        self.minsize(820, 520)
+        self.minsize(920, 560)
 
         self._prefs = load_preferences()
         self._prefs_path: Path | None = None
@@ -55,31 +73,21 @@ class CoverSheetsApp(ctk.CTk):
         self._run_output_dir: Path | None = None
         self._run_jobs: list[JobItem] = []
         self._toolbar_buttons: list[ctk.CTkButton] = []
+        self._dnd_enabled = False
 
-        p = self._prefs
-        self.output_dir_var = ctk.StringVar(value=p.output_dir or "")
-        self.compress_var = ctk.BooleanVar(value=p.compress)
-        self.force_var = ctk.BooleanVar(value=p.force)
-        self.rename_to_label_var = ctk.BooleanVar(value=p.rename_to_label)
-        self.strip_metadata_var = ctk.BooleanVar(value=p.strip_metadata)
-        self.optimize_var = ctk.BooleanVar(value=p.optimize)
-        self.linearize_var = ctk.BooleanVar(value=p.linearize)
-        self.ocr_var = ctk.BooleanVar(value=p.ocr)
-        self.ocr_language_var = ctk.StringVar(value=p.ocr_language or "eng")
-        self.open_when_done_var = ctk.BooleanVar(value=p.open_when_done)
-        self.status_var = ctk.StringVar(value="Add PDFs or open a folder to begin.")
-        self.hint_var = ctk.StringVar()
         self.appearance_var = ctk.StringVar(
-            value=normalize_appearance_mode(p.appearance_mode)
+            value=normalize_appearance_mode(self._prefs.appearance_mode)
         )
+        self.status_var = ctk.StringVar(value=status_for_jobs(0, 0))
 
-        geo = (p.window_geometry or "900x560").strip() or "900x560"
+        geo = (self._prefs.window_geometry or "1000x640").strip() or "1000x640"
         try:
             self.geometry(geo)
         except tk.TclError:
-            self.geometry("900x560")
+            self.geometry("1000x640")
 
         self._build_ui()
+        self._setup_dnd()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.bind("<Control-a>", self._on_select_all)
         self.bind("<Control-A>", self._on_select_all)
@@ -88,35 +96,47 @@ class CoverSheetsApp(ctk.CTk):
             self.bind("<Command-A>", self._on_select_all)
         self.after(100, self._poll_queue)
         self.after(80, self._restore_session)
+        self.after(200, self._maybe_show_welcome)
 
     # --- UI construction -------------------------------------------------
 
     def _build_ui(self) -> None:
-        pad_x, pad_y = 10, 6
+        pad_x, pad_y = 12, 6
 
-        # Toolbar
-        toolbar = ctk.CTkFrame(self, fg_color="transparent")
-        toolbar.pack(fill="x", padx=pad_x, pady=(pad_y, 2))
+        # Title row: steps + theme + help
+        top = ctk.CTkFrame(self, fg_color="transparent")
+        top.pack(fill="x", padx=pad_x, pady=(pad_y, 2))
 
-        left = ctk.CTkFrame(toolbar, fg_color="transparent")
-        left.pack(side="left", fill="x", expand=True)
+        self._step_labels: list[ctk.CTkLabel] = []
+        steps_frame = ctk.CTkFrame(top, fg_color="transparent")
+        steps_frame.pack(side="left", fill="x", expand=True)
+        for i, text in enumerate(STEP_LABELS):
+            lbl = ctk.CTkLabel(
+                steps_frame,
+                text=text,
+                font=ctk.CTkFont(size=13, weight="bold"),
+                text_color=("gray50", "gray55"),
+            )
+            lbl.pack(side="left", padx=(0, 12))
+            self._step_labels.append(lbl)
+            if i < len(STEP_LABELS) - 1:
+                ctk.CTkLabel(
+                    steps_frame,
+                    text="→",
+                    text_color=("gray60", "gray50"),
+                ).pack(side="left", padx=(0, 12))
 
-        for text, cmd in (
-            ("Open Folder…", self._on_open_folder),
-            ("Add PDFs…", self._on_add_pdfs),
-            ("Remove", self._on_remove),
-            ("Remove All", self._on_remove_all),
-            ("Reset Labels", self._on_reset_labels),
-        ):
-            btn = ctk.CTkButton(left, text=text, width=0, command=cmd)
-            btn.pack(side="left", padx=(0, 6))
-            self._toolbar_buttons.append(btn)
-
-        theme_frame = ctk.CTkFrame(toolbar, fg_color="transparent")
-        theme_frame.pack(side="right")
-        ctk.CTkLabel(theme_frame, text="Theme").pack(side="left", padx=(0, 6))
+        right_top = ctk.CTkFrame(top, fg_color="transparent")
+        right_top.pack(side="right")
+        ctk.CTkButton(
+            right_top,
+            text="?",
+            width=32,
+            command=self._show_welcome,
+        ).pack(side="left", padx=(0, 8))
+        ctk.CTkLabel(right_top, text="Theme").pack(side="left", padx=(0, 6))
         self.appearance_menu = ctk.CTkOptionMenu(
-            theme_frame,
+            right_top,
             values=list(APPEARANCE_MODES),
             variable=self.appearance_var,
             width=100,
@@ -124,119 +144,56 @@ class CoverSheetsApp(ctk.CTk):
         )
         self.appearance_menu.pack(side="left")
 
-        # Output folder
-        out_row = ctk.CTkFrame(self, fg_color="transparent")
-        out_row.pack(fill="x", padx=pad_x, pady=pad_y)
-        ctk.CTkLabel(out_row, text="Output folder:").pack(side="left")
-        self.output_entry = ctk.CTkEntry(out_row, textvariable=self.output_dir_var)
-        self.output_entry.pack(side="left", fill="x", expand=True, padx=8)
-        browse_btn = ctk.CTkButton(
-            out_row, text="Browse…", width=90, command=self._on_browse_output
-        )
-        browse_btn.pack(side="left")
-        self._toolbar_buttons.append(browse_btn)
-        ctk.CTkLabel(
-            out_row,
-            text="(empty = next to each source)",
-            text_color=("gray40", "gray60"),
-        ).pack(side="left", padx=(8, 0))
-
-        # Process options
-        process_box = ctk.CTkFrame(self)
-        process_box.pack(fill="x", padx=pad_x, pady=(2, pad_y))
-        ctk.CTkLabel(
-            process_box,
-            text="Process options",
-            font=ctk.CTkFont(weight="bold"),
-            anchor="w",
-        ).pack(anchor="w", padx=10, pady=(8, 4))
-        process_row = ctk.CTkFrame(process_box, fg_color="transparent")
-        process_row.pack(fill="x", padx=10, pady=(0, 8))
-        for text, var, extra in (
-            ("Compress page streams", self.compress_var, {}),
-            ("Overwrite existing +outputs", self.force_var, {}),
-            (
-                "Name output file after label",
-                self.rename_to_label_var,
-                {"command": self._update_hint},
-            ),
-            ("Open output folder when done", self.open_when_done_var, {}),
+        # Toolbar
+        toolbar = ctk.CTkFrame(self, fg_color="transparent")
+        toolbar.pack(fill="x", padx=pad_x, pady=(2, 2))
+        for text, cmd in (
+            ("Open folder…", self._on_open_folder),
+            ("Add PDFs…", self._on_add_pdfs),
+            ("Remove selected", self._on_remove),
+            ("Clear list", self._on_remove_all),
+            ("Reset titles", self._on_reset_labels),
+            ("Include all", self._on_include_all),
+            ("Exclude all", self._on_exclude_all),
         ):
-            ctk.CTkCheckBox(process_row, text=text, variable=var, **extra).pack(
-                side="left", padx=(0, 14)
-            )
+            btn = ctk.CTkButton(toolbar, text=text, width=0, command=cmd)
+            btn.pack(side="left", padx=(0, 6))
+            self._toolbar_buttons.append(btn)
 
-        # PDF options
-        pdf_box = ctk.CTkFrame(self)
-        pdf_box.pack(fill="x", padx=pad_x, pady=(0, pad_y))
-        ctk.CTkLabel(
-            pdf_box,
-            text="PDF options",
-            font=ctk.CTkFont(weight="bold"),
-            anchor="w",
-        ).pack(anchor="w", padx=10, pady=(8, 4))
+        # Main split: list + preview
+        body = ctk.CTkFrame(self, fg_color="transparent")
+        body.pack(fill="both", expand=True, padx=pad_x, pady=pad_y)
+        body.grid_columnconfigure(0, weight=3)
+        body.grid_columnconfigure(1, weight=1)
+        body.grid_rowconfigure(0, weight=1)
 
-        pdf_row1 = ctk.CTkFrame(pdf_box, fg_color="transparent")
-        pdf_row1.pack(fill="x", padx=10, pady=(0, 4))
-        ctk.CTkCheckBox(
-            pdf_row1,
-            text="Strip metadata (Info + XMP)",
-            variable=self.strip_metadata_var,
-        ).pack(side="left", padx=(0, 14))
-        ctk.CTkCheckBox(
-            pdf_row1,
-            text="Optimize (dedupe objects)",
-            variable=self.optimize_var,
-        ).pack(side="left", padx=(0, 14))
-        lin_state = "normal" if linearize_available() else "disabled"
-        self._linearize_cb = ctk.CTkCheckBox(
-            pdf_row1,
-            text="Linearize (web optimize)",
-            variable=self.linearize_var,
-            state=lin_state,
+        list_wrap = ctk.CTkFrame(body, fg_color="transparent")
+        list_wrap.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        list_wrap.grid_columnconfigure(0, weight=1)
+        list_wrap.grid_rowconfigure(0, weight=1)
+
+        blurb = empty_list_blurb(dnd_available=dnd_available())
+        self.job_list = JobListFrame(
+            list_wrap,
+            on_jobs_changed=self._on_jobs_changed,
+            on_selection_changed=self._on_selection_changed,
+            on_empty_open_folder=self._on_open_folder,
+            on_empty_add_pdfs=self._on_add_pdfs,
+            empty_blurb=blurb,
         )
-        self._linearize_cb.pack(side="left", padx=(0, 14))
+        self.job_list.grid(row=0, column=0, sticky="nsew")
 
-        pdf_row2 = ctk.CTkFrame(pdf_box, fg_color="transparent")
-        pdf_row2.pack(fill="x", padx=10, pady=(0, 8))
-        ocr_state = "normal" if ocr_available() else "disabled"
-        self._ocr_cb = ctk.CTkCheckBox(
-            pdf_row2,
-            text="OCR (ocrmypdf)",
-            variable=self.ocr_var,
-            state=ocr_state,
-        )
-        self._ocr_cb.pack(side="left")
-        ctk.CTkLabel(pdf_row2, text="Language:").pack(side="left", padx=(12, 4))
-        self._ocr_lang_entry = ctk.CTkEntry(
-            pdf_row2, textvariable=self.ocr_language_var, width=70
-        )
-        self._ocr_lang_entry.pack(side="left")
-        if not ocr_available():
-            ctk.CTkLabel(
-                pdf_row2,
-                text="(use Windows full installer, or coversheets[ocr] + Tesseract)",
-                text_color=("gray50", "gray55"),
-            ).pack(side="left", padx=(8, 0))
-        if not linearize_available():
-            ctk.CTkLabel(
-                pdf_row2,
-                text="Linearize needs coversheets[optimize] or qpdf",
-                text_color=("gray50", "gray55"),
-            ).pack(side="left", padx=(12, 0))
+        self.preview = CoverPreview(body, width=240)
+        self.preview.grid(row=0, column=1, sticky="nsew")
 
-        # Hint
-        self._update_hint()
-        ctk.CTkLabel(
+        # Options
+        self.options = OptionsPanel(
             self,
-            textvariable=self.hint_var,
-            text_color=("gray40", "gray60"),
-            anchor="w",
-        ).pack(fill="x", padx=pad_x)
-
-        # Job list
-        self.job_list = JobListFrame(self, on_jobs_changed=self._on_jobs_changed)
-        self.job_list.pack(fill="both", expand=True, padx=pad_x, pady=pad_y)
+            self._prefs,
+            on_change=self._on_options_changed,
+            dialog_initial_dir=self._dialog_initial_dir,
+        )
+        self.options.pack(fill="x", padx=pad_x, pady=(0, pad_y))
 
         # Bottom status + generate
         bottom = ctk.CTkFrame(self, fg_color="transparent")
@@ -246,10 +203,10 @@ class CoverSheetsApp(ctk.CTk):
         )
         self.generate_btn = ctk.CTkButton(
             bottom,
-            text="Generate Cover Sheets",
-            width=180,
-            height=32,
-            font=ctk.CTkFont(weight="bold"),
+            text="Generate cover sheets",
+            width=200,
+            height=36,
+            font=ctk.CTkFont(size=14, weight="bold"),
             command=self._on_generate,
         )
         self.generate_btn.pack(side="right")
@@ -262,6 +219,15 @@ class CoverSheetsApp(ctk.CTk):
             font=ctk.CTkFont(size=11),
         ).pack(anchor="e", padx=pad_x, pady=(0, 8))
 
+        self._update_steps()
+
+    def _setup_dnd(self) -> None:
+        if not dnd_available():
+            return
+        self._dnd_enabled = register_drop_target(self, self._on_drop_paths)
+        if self._dnd_enabled:
+            self.job_list.set_empty_blurb(empty_list_blurb(dnd_available=True))
+
     # --- Preferences -----------------------------------------------------
 
     def _dialog_initial_dir(self) -> str | None:
@@ -272,23 +238,14 @@ class CoverSheetsApp(ctk.CTk):
         try:
             geometry = self.geometry()
         except tk.TclError:
-            geometry = self._prefs.window_geometry or "900x560"
-        return AppPreferences(
-            last_folder=self._prefs.last_folder,
-            last_file_dialog_dir=self._prefs.last_file_dialog_dir,
-            output_dir=self.output_dir_var.get().strip(),
-            window_geometry=geometry,
-            appearance_mode=normalize_appearance_mode(self.appearance_var.get()),
-            compress=self.compress_var.get(),
-            force=self.force_var.get(),
-            rename_to_label=self.rename_to_label_var.get(),
-            strip_metadata=self.strip_metadata_var.get(),
-            optimize=self.optimize_var.get(),
-            linearize=self.linearize_var.get(),
-            ocr=self.ocr_var.get(),
-            ocr_language=self.ocr_language_var.get().strip() or "eng",
-            open_when_done=self.open_when_done_var.get(),
-        )
+            geometry = self._prefs.window_geometry or "1000x640"
+        base = self.options.collect_into_prefs(self._prefs)
+        base.window_geometry = geometry
+        base.appearance_mode = normalize_appearance_mode(self.appearance_var.get())
+        base.last_folder = self._prefs.last_folder
+        base.last_file_dialog_dir = self._prefs.last_file_dialog_dir
+        base.show_welcome = self._prefs.show_welcome
+        return base
 
     def _save_preferences(self) -> None:
         self._prefs = self._collect_preferences()
@@ -310,39 +267,78 @@ class CoverSheetsApp(ctk.CTk):
         if last is not None:
             self._load_folder(last, remember=True, from_prefs=True)
 
+    def _maybe_show_welcome(self) -> None:
+        if self._prefs.show_welcome:
+            self._show_welcome()
+
+    def _show_welcome(self) -> None:
+        def finish(dont_show: bool) -> None:
+            if dont_show:
+                self._prefs.show_welcome = False
+                self._save_preferences()
+
+        WelcomeDialog(self, on_finish=finish)
+
     def _on_appearance_change(self, mode: str) -> None:
         apply_appearance(mode)
         self._save_preferences()
 
-    # --- Job list helpers ------------------------------------------------
+    def _on_options_changed(self) -> None:
+        self._update_steps()
+        # Auto-save lightly so advanced/output mode stick
+        try:
+            self._prefs = self._collect_preferences()
+        except Exception:
+            pass
 
-    def _update_hint(self) -> None:
-        if self.rename_to_label_var.get():
-            naming = f"Outputs are named {OUTPUT_PREFIX}CoverLabel.pdf (sanitized)"
+    # --- Steps / preview -------------------------------------------------
+
+    def _update_steps(self) -> None:
+        jobs = self.job_list.jobs
+        included = sum(1 for j in jobs if j.include)
+        if not jobs:
+            active = 0
+        elif included == 0:
+            active = 1
         else:
-            naming = f"Outputs are named {OUTPUT_PREFIX}OriginalName.pdf"
-        self.hint_var.set(
-            "Edit Cover Label in the list. "
-            "Use Include checkboxes to choose files. "
-            f"{naming}."
+            active = 2
+        for i, lbl in enumerate(self._step_labels):
+            if i == active:
+                lbl.configure(text_color=("#1F6AA5", "#3B8ED0"))
+            elif i < active:
+                lbl.configure(text_color=("gray30", "gray70"))
+            else:
+                lbl.configure(text_color=("gray50", "gray55"))
+
+    def _on_selection_changed(self) -> None:
+        jobs = self.job_list.jobs
+        idx = preview_target_index(
+            self.job_list.selected_set,
+            anchor=self.job_list.anchor_index,
+            job_count=len(jobs),
         )
+        if idx is None:
+            if not jobs:
+                self.preview.clear()
+            else:
+                self.preview.clear("Select a file to preview its cover.")
+            return
+        job = jobs[idx]
+        self.preview.show(title=job.label, filename=job.source.name)
 
     def _on_jobs_changed(self) -> None:
         jobs = self.job_list.jobs
         included = sum(1 for j in jobs if j.include)
-        if jobs:
-            self.status_var.set(f"{len(jobs)} file(s) loaded · {included} included")
-        else:
-            self.status_var.set("Add PDFs or open a folder to begin.")
+        self.status_var.set(status_for_jobs(len(jobs), included))
+        self._update_steps()
+        self._on_selection_changed()
 
     def _on_select_all(self, _event: object | None = None) -> str:
-        # Don't steal Ctrl+A from text entries.
         focus = self.focus_get()
         if focus is not None:
             cls = focus.winfo_class()
             if cls in {"Entry", "Text", "TEntry", "CTkEntry"}:
                 return ""
-            # CustomTkinter entry internal widget
             name = str(focus).lower()
             if "entry" in name or "text" in name:
                 return ""
@@ -377,22 +373,57 @@ class CoverSheetsApp(ctk.CTk):
         jobs = jobs_from_folder(folder)
         if not jobs and not from_prefs:
             messagebox.showinfo(
-                "No PDFs",
-                f"No input PDFs found in:\n{folder}\n\n"
-                f"(Files starting with '{OUTPUT_PREFIX}' are skipped.)",
+                "No PDFs found",
+                f"No PDFs found in:\n{folder}\n\n"
+                f"(Files starting with “{OUTPUT_PREFIX}” are skipped — "
+                "those look like previous outputs.)",
             )
         self._merge_jobs(jobs, replace=True)
-        if not self.output_dir_var.get().strip():
-            self.output_dir_var.set(str(folder))
+        # Default single-folder mode to this folder if user chose "one folder"
+        if (
+            self.options.output_mode_var.get() == "folder"
+            and not self.options.output_dir_var.get().strip()
+        ):
+            self.options.output_dir_var.set(str(folder))
         if remember:
             self._remember_folder(folder)
             self._save_preferences()
         if from_prefs and jobs:
             included = sum(1 for j in self.job_list.jobs if j.include)
             self.status_var.set(
-                f"Restored last folder · {len(self.job_list.jobs)} file(s) · "
-                f"{included} included"
+                f"Restored last folder · {status_for_jobs(len(self.job_list.jobs), included)}"
             )
+
+    def _on_drop_paths(self, paths: list[Path] | Any) -> None:
+        if self._busy:
+            return
+        path_list = [Path(p) for p in paths]
+        folders = [p for p in path_list if p.is_dir()]
+        files = [p for p in path_list if p.is_file()]
+        if folders:
+            # First folder wins for replace-load (same as Open folder).
+            self._load_folder(folders[0])
+            return
+        if not files:
+            return
+        filtered = [p for p in files if p.suffix.lower() == ".pdf"]
+        filtered = [p for p in filtered if not is_output_filename(p.name)]
+        if not filtered:
+            messagebox.showinfo(
+                "Nothing to add",
+                "Drop PDF files (not folders that already start with "
+                f"“{OUTPUT_PREFIX}”).",
+                parent=self,
+            )
+            return
+        jobs = jobs_from_paths(filtered)
+        self._merge_jobs(jobs, replace=False)
+        if jobs:
+            parent = jobs[0].source.parent
+            self._prefs.last_file_dialog_dir = str(parent)
+            if not self._prefs.last_folder:
+                self._prefs.last_folder = str(parent)
+            self._save_preferences()
 
     # --- Toolbar actions -------------------------------------------------
 
@@ -434,13 +465,21 @@ class CoverSheetsApp(ctk.CTk):
             self._save_preferences()
         if skipped:
             messagebox.showinfo(
-                "Skipped outputs",
+                "Skipped previous outputs",
                 f"Skipped {skipped} file(s) that look like prior outputs "
-                f"(name starts with '{OUTPUT_PREFIX}').",
+                f"(name starts with “{OUTPUT_PREFIX}”).",
             )
 
     def _on_remove(self) -> None:
         if self._busy:
+            return
+        if not self.job_list.selected_indices():
+            messagebox.showinfo(
+                "Nothing selected",
+                "Click a row to select it, then Remove selected.\n\n"
+                "Tip: hold Ctrl (⌘ on Mac) to select more than one.",
+                parent=self,
+            )
             return
         self.job_list.remove_selected()
 
@@ -450,7 +489,7 @@ class CoverSheetsApp(ctk.CTk):
         if not self.job_list.jobs:
             return
         if not messagebox.askyesno(
-            "Remove all?",
+            "Clear the list?",
             f"Remove all {len(self.job_list.jobs)} PDF(s) from the list?\n\n"
             "This does not delete any files on disk.",
             parent=self,
@@ -463,19 +502,15 @@ class CoverSheetsApp(ctk.CTk):
             return
         self.job_list.reset_labels()
 
-    def _on_browse_output(self) -> None:
-        kwargs: dict[str, Any] = {"title": "Select output folder"}
-        out = self.output_dir_var.get().strip()
-        if out and Path(out).expanduser().is_dir():
-            kwargs["initialdir"] = str(Path(out).expanduser())
-        else:
-            initial = self._dialog_initial_dir()
-            if initial:
-                kwargs["initialdir"] = initial
-        path = filedialog.askdirectory(**kwargs)
-        if path:
-            self.output_dir_var.set(path)
-            self._save_preferences()
+    def _on_include_all(self) -> None:
+        if self._busy:
+            return
+        self.job_list.include_all()
+
+    def _on_exclude_all(self) -> None:
+        if self._busy:
+            return
+        self.job_list.exclude_all()
 
     # --- Generate --------------------------------------------------------
 
@@ -487,54 +522,48 @@ class CoverSheetsApp(ctk.CTk):
         if not included:
             messagebox.showwarning(
                 "Nothing to process",
-                "Include at least one PDF in the list.",
+                "Include at least one PDF.\n\n"
+                "Use the Include checkbox on each row, or click Include all.",
+                parent=self,
             )
             return
 
-        out_raw = self.output_dir_var.get().strip()
-        output_dir: Path | None = Path(out_raw).expanduser() if out_raw else None
-        if output_dir is not None:
+        cap_err = self.options.ensure_capabilities_or_warn()
+        if cap_err:
+            messagebox.showerror("Option not available", cap_err, parent=self)
+            return
+
+        output_dir = self.options.resolved_output_dir()
+        if self.options.output_mode_var.get() == "folder":
+            if output_dir is None:
+                messagebox.showerror(
+                    "Choose a folder",
+                    "You chose “One folder…” — pick where finished PDFs should go.",
+                    parent=self,
+                )
+                return
             try:
-                output_dir = output_dir.resolve()
                 output_dir.mkdir(parents=True, exist_ok=True)
             except OSError as exc:
-                messagebox.showerror("Output folder", str(exc))
+                messagebox.showerror("Output folder", str(exc), parent=self)
                 return
 
         jobs_snapshot = [
             JobItem(source=j.source, label=j.label, include=j.include) for j in jobs
         ]
         options = ProcessOptions(
-            compress=self.compress_var.get(),
-            force=self.force_var.get(),
+            compress=self.options.compress_var.get(),
+            force=self.options.force_var.get(),
             dry_run=False,
-            rename_to_label=self.rename_to_label_var.get(),
-            strip_metadata=self.strip_metadata_var.get(),
-            ocr=self.ocr_var.get() and ocr_available(),
-            ocr_language=self.ocr_language_var.get().strip() or "eng",
+            rename_to_label=self.options.rename_to_label_var.get(),
+            strip_metadata=self.options.strip_metadata_var.get(),
+            ocr=self.options.ocr_var.get() and ocr_available(),
+            ocr_language=self.options.ocr_language_var.get().strip() or "eng",
             ocr_skip_text=True,
-            optimize=self.optimize_var.get(),
-            linearize=self.linearize_var.get() and linearize_available(),
+            optimize=self.options.optimize_var.get(),
+            linearize=self.options.linearize_var.get() and linearize_available(),
         )
-        open_when_done = self.open_when_done_var.get()
-
-        if self.ocr_var.get() and not ocr_available():
-            messagebox.showerror(
-                "OCR unavailable",
-                "OCR requires ocrmypdf and Tesseract.\n\n"
-                "• Windows: use the full installer release (recommended), or\n"
-                "• pip install 'coversheets[ocr]' and install Tesseract.",
-                parent=self,
-            )
-            return
-        if self.linearize_var.get() and not linearize_available():
-            messagebox.showerror(
-                "Linearize unavailable",
-                "Linearize requires pikepdf or the qpdf CLI.\n"
-                "Install with: pip install 'coversheets[optimize]'",
-                parent=self,
-            )
-            return
+        open_when_done = self.options.open_when_done_var.get()
 
         self._save_preferences()
 
@@ -542,20 +571,26 @@ class CoverSheetsApp(ctk.CTk):
         self._run_jobs = jobs_snapshot
         self._cancel_event.clear()
         self._set_busy(True)
-        self.status_var.set("Generating…")
+        self.status_var.set("Creating cover sheets…")
 
         self._progress_win = ProgressWindow(
             self,
             total=len(included),
             on_cancel=self._cancel_event.set,
         )
-        self._progress_win.append_log(f"Processing {len(included)} PDF(s)…")
-        for line in options.describe():
-            self._progress_win.append_log(f"Option: {line}")
+        self._progress_win.append_log(
+            f"Creating cover sheets for {len(included)} PDF(s)…"
+        )
+        for line in plain_option_lines(options):
+            self._progress_win.append_log(f"• {line}")
 
         def worker() -> None:
             def log(msg: str) -> None:
-                self._msg_queue.put(("log", msg))
+                # Soften a few pipeline messages for the progress log.
+                text = msg
+                if text.startswith("Writing "):
+                    text = text.replace("Writing ", "Saving ", 1)
+                self._msg_queue.put(("log", text))
 
             def progress(current: int, total: int, name: str) -> None:
                 self._msg_queue.put(("progress", (current, total, name)))
@@ -621,7 +656,7 @@ class CoverSheetsApp(ctk.CTk):
                 elif kind == "error":
                     self._close_progress_window()
                     self._set_busy(False)
-                    messagebox.showerror("Error", str(payload), parent=self)
+                    messagebox.showerror("Something went wrong", str(payload), parent=self)
                     self.status_var.set("Failed.")
         except queue.Empty:
             pass
@@ -654,10 +689,10 @@ class CoverSheetsApp(ctk.CTk):
     def _on_close(self) -> None:
         if self._busy:
             if not messagebox.askyesno(
-                "Busy",
-                "Generation is still running.\n\n"
+                "Still working",
+                "Cover sheets are still being created.\n\n"
                 "Quit anyway? The current file may finish writing, "
-                "but remaining files will be cancelled.",
+                "but remaining files will stop.",
                 parent=self,
             ):
                 return

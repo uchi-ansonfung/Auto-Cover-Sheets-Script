@@ -10,6 +10,7 @@ from pathlib import Path
 import customtkinter as ctk
 from tkinter import messagebox
 
+from coversheets.gui.copy import done_headline
 from coversheets.process import BatchResult
 from coversheets.util import format_result_summary, open_in_file_manager
 
@@ -40,7 +41,7 @@ class ProgressWindow(ctk.CTkToplevel):
         on_cancel: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(master)
-        self.title("Generating cover sheets…")
+        self.title("Creating cover sheets…")
         self.resizable(True, True)
         self.minsize(420, 280)
         self.geometry("520x340")
@@ -57,7 +58,7 @@ class ProgressWindow(ctk.CTkToplevel):
 
         ctk.CTkLabel(
             self,
-            text="Please wait while cover sheets are generated.",
+            text="Please wait — cover pages are being added to your PDFs.",
             font=ctk.CTkFont(size=13),
             anchor="w",
         ).pack(anchor="w", **pad)
@@ -77,7 +78,7 @@ class ProgressWindow(ctk.CTkToplevel):
 
         log_frame = ctk.CTkFrame(self)
         log_frame.pack(fill="both", expand=True, padx=12, pady=6)
-        ctk.CTkLabel(log_frame, text="Log", anchor="w").pack(
+        ctk.CTkLabel(log_frame, text="Progress", anchor="w").pack(
             anchor="w", padx=8, pady=(6, 0)
         )
         mono = (
@@ -97,7 +98,7 @@ class ProgressWindow(ctk.CTkToplevel):
         self.cancel_btn.pack(side="right")
         ctk.CTkLabel(
             btn_row,
-            text="Cancel stops after the current file.",
+            text="Cancel finishes the current file, then stops.",
             text_color=("gray40", "gray60"),
             anchor="w",
         ).pack(side="left")
@@ -111,7 +112,7 @@ class ProgressWindow(ctk.CTkToplevel):
             return
         self._cancel_requested = True
         self.cancel_btn.configure(state="disabled", text="Cancelling…")
-        self.status_var.set("Cancelling after current file…")
+        self.status_var.set("Stopping after the current file…")
         self.append_log("Cancel requested — will stop after the current file.")
         if self._on_cancel is not None:
             self._on_cancel()
@@ -119,14 +120,14 @@ class ProgressWindow(ctk.CTkToplevel):
     def _on_close_attempt(self) -> None:
         if self._cancel_requested:
             messagebox.showinfo(
-                "Cancelling",
-                "Cancel already requested.\n"
-                "This window will close when the current file finishes.",
+                "Stopping",
+                "Already stopping after the current file.\n"
+                "This window will close when that file finishes.",
                 parent=self,
             )
             return
         if messagebox.askyesno(
-            "Cancel generation?",
+            "Stop now?",
             "Stop after the current file finishes?\n\n"
             "Files already written will be kept.",
             parent=self,
@@ -136,12 +137,11 @@ class ProgressWindow(ctk.CTkToplevel):
     def set_progress(self, current: int, total: int, name: str) -> None:
         total = max(total, 1)
         self._total = total
-        # Show progress for the file about to start / in progress.
         pct = ((current - 1) / total) if current > 0 else 0.0
         self.bar.set(min(max(pct, 0.0), 1.0))
         self.count_var.set(f"{current} / {total}")
         if not self._cancel_requested:
-            self.status_var.set(f"Processing: {name}")
+            self.status_var.set(f"Working on: {name}")
 
     def append_log(self, line: str) -> None:
         if not line:
@@ -155,7 +155,7 @@ class ProgressWindow(ctk.CTkToplevel):
         if not cancelled:
             self.bar.set(1.0)
         self.count_var.set(f"{self._total} / {self._total}")
-        self.status_var.set("Cancelled." if cancelled else "Finished.")
+        self.status_var.set("Stopped." if cancelled else "Finished.")
         try:
             self.cancel_btn.configure(state="disabled")
         except tk.TclError:
@@ -179,18 +179,8 @@ class DoneDialog(ctk.CTkToplevel):
         self.folders = [Path(p) for p in folders]
 
         ok = result.ok and result.failed == 0 and not result.was_cancelled
-        if result.was_cancelled:
-            self.title("Cancelled")
-            headline = "Generation cancelled."
-        elif ok and result.succeeded == 0 and result.skipped:
-            self.title("Nothing new written")
-            headline = "All selected files were skipped."
-        elif ok:
-            self.title("Success")
-            headline = "Cover sheets generated successfully."
-        else:
-            self.title("Finished with errors")
-            headline = "Finished, but some files failed."
+        title, headline = done_headline(result)
+        self.title(title)
 
         pad = {"padx": 16, "pady": 6}
 
@@ -199,6 +189,8 @@ class DoneDialog(ctk.CTkToplevel):
             text=headline,
             font=ctk.CTkFont(size=14, weight="bold"),
             anchor="w",
+            justify="left",
+            wraplength=420,
         ).pack(anchor="w", padx=16, pady=(16, 4))
         ctk.CTkLabel(
             self, text=format_result_summary(result), anchor="w", justify="left"
@@ -207,9 +199,9 @@ class DoneDialog(ctk.CTkToplevel):
         if result.errors:
             err_frame = ctk.CTkFrame(self)
             err_frame.pack(fill="both", expand=True, padx=16, pady=6)
-            ctk.CTkLabel(err_frame, text="Errors", anchor="w").pack(
-                anchor="w", padx=8, pady=(6, 0)
-            )
+            ctk.CTkLabel(
+                err_frame, text="These files need attention:", anchor="w"
+            ).pack(anchor="w", padx=8, pady=(6, 0))
             err_text = ctk.CTkTextbox(
                 err_frame,
                 height=min(120, max(48, 20 * len(result.errors))),
@@ -224,14 +216,15 @@ class DoneDialog(ctk.CTkToplevel):
             folder_label = (
                 str(self.folders[0])
                 if len(self.folders) == 1
-                else f"{len(self.folders)} folders (outputs next to sources)"
+                else f"{len(self.folders)} folders (next to each original)"
             )
             ctk.CTkLabel(
                 self,
-                text=f"Output: {folder_label}",
+                text=f"Where to look: {folder_label}",
                 text_color=("gray40", "gray60"),
                 anchor="w",
                 justify="left",
+                wraplength=420,
             ).pack(anchor="w", padx=16, pady=(4, 8))
 
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
@@ -239,9 +232,7 @@ class DoneDialog(ctk.CTkToplevel):
 
         if self.folders:
             open_label = (
-                "Open Output Folder"
-                if len(self.folders) == 1
-                else "Open Output Folders"
+                "Show in folder" if len(self.folders) == 1 else "Show in folders"
             )
             ctk.CTkButton(
                 btn_row, text=open_label, command=self._open_folders
@@ -257,7 +248,6 @@ class DoneDialog(ctk.CTkToplevel):
         center_on_master(self, master)
 
         if open_when_done and self.folders and ok:
-            # Defer so the dialog is visible first.
             self.after(150, self._open_folders)
 
     def _open_folders(self) -> None:

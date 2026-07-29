@@ -12,6 +12,9 @@ from typing import Any
 
 PREFS_VERSION = 1
 
+OUTPUT_MODES = frozenset({"beside", "folder"})
+PRESET_IDS = frozenset({"recommended", "searchable", "custom"})
+
 
 @dataclass
 class AppPreferences:
@@ -23,8 +26,10 @@ class AppPreferences:
     last_file_dialog_dir: str = ""
     # Output
     output_dir: str = ""
-    # Window geometry e.g. "900x560+120+80"
-    window_geometry: str = "900x560"
+    # "beside" = next to each source; "folder" = single output_dir
+    output_mode: str = "beside"
+    # Window geometry e.g. "1000x640+120+80"
+    window_geometry: str = "1000x640"
     # GUI appearance: "System" | "Light" | "Dark" (CustomTkinter)
     appearance_mode: str = "System"
     # Toggles (defaults match ProcessOptions / GUI defaults)
@@ -37,6 +42,11 @@ class AppPreferences:
     ocr: bool = False
     ocr_language: str = "eng"
     open_when_done: bool = True
+    # Usability overhaul
+    show_welcome: bool = True
+    advanced_expanded: bool = False
+    # "recommended" | "searchable" | "custom"
+    preset: str = "recommended"
 
     def resolved_last_folder(self) -> Path | None:
         return _existing_dir(self.last_folder)
@@ -46,6 +56,12 @@ class AppPreferences:
 
     def resolved_output_dir(self) -> Path | None:
         return _existing_dir(self.output_dir)
+
+    def effective_output_dir(self) -> Path | None:
+        """Directory used for a run, or None when saving beside each source."""
+        if self.output_mode != "folder":
+            return None
+        return self.resolved_output_dir()
 
 
 def _existing_dir(raw: str) -> Path | None:
@@ -136,6 +152,20 @@ def preferences_from_dict(raw: dict[str, Any]) -> AppPreferences:
     if mode not in {"System", "Light", "Dark"}:
         mode = "System"
     prefs.appearance_mode = mode
+
+    if "output_mode" in data:
+        out_mode = (prefs.output_mode or "beside").strip().lower()
+        if out_mode not in OUTPUT_MODES:
+            out_mode = "beside"
+    else:
+        # Older prefs only had output_dir; treat a non-empty path as folder mode.
+        out_mode = "folder" if (prefs.output_dir or "").strip() else "beside"
+    prefs.output_mode = out_mode
+
+    preset = (prefs.preset or "recommended").strip().lower()
+    if preset not in PRESET_IDS:
+        preset = "recommended"
+    prefs.preset = preset
     return prefs
 
 

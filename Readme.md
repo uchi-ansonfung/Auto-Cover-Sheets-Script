@@ -49,27 +49,26 @@ python -m coversheets
 coversheets /path/to/pdfs
 ```
 
-1. **Open Folder…** or **Add PDFs…** to populate the list.
-2. Edit each **Cover Label** in the list (defaults to the filename without `.pdf`).
-3. Use the **Include** checkbox on each row; **Remove** selected rows or **Remove All** to clear the list.
-4. Optionally set an **output folder** (empty = write next to each source file).
-5. Choose process/PDF options, then **Generate Cover Sheets**.
-6. A **progress window** shows status/log and a **Cancel** button (stops after the current file). A **success dialog** can open the output folder.
-7. Outputs are written **atomically** (temp `.partial` then rename) so crashes don’t leave truncated finals. Default name: `+OriginalName.pdf` (or `+CoverLabel.pdf` with rename). Originals are not modified.
+1. **Open a folder** or **Add PDFs** (or drag PDFs / a folder onto the window).
+2. Check each **Cover title** (defaults to the filename without `.pdf`). A **cover preview** updates as you edit.
+3. Use **Include** to choose which files to process; **Include all** / **Exclude all** help with large lists.
+4. Choose where to save: **Next to each original** or **One folder…**
+5. Common options stay visible (remove hidden document info, searchable OCR). Extra PDF knobs live under **More options**.
+6. Click **Generate cover sheets**. Progress can be cancelled after the current file; when finished you can **Show in folder**.
+7. Outputs are written **atomically** (temp `.partial` then rename). Default name: `+OriginalName.pdf`. Originals are never modified.
 
-The GUI **remembers preferences** between runs (checkboxes, OCR language, window size, light/dark/system theme, output folder, and last input folder). On launch it reloads the last folder if it still exists. Settings are stored under your user config directory (`~/Library/Application Support/coversheets/` on macOS, `%APPDATA%\\coversheets\\` on Windows, `~/.config/coversheets/` on Linux).
+The first launch shows a short welcome. The GUI **remembers preferences** (options, theme, window size, last folder, etc.). Settings live under your user config directory (`~/Library/Application Support/coversheets/` on macOS, `%APPDATA%\\coversheets\\` on Windows, `~/.config/coversheets/` on Linux).
 
-### PDF options (GUI + CLI)
+### Options (GUI labels → behavior)
 
-| Option | Default | Notes |
-|--------|---------|--------|
-| Compress page streams | on | Lossless content-stream compression |
-| **Strip metadata** | on | Removes document Info + XMP (true strip, not only “don’t copy”) |
-| **Optimize** | on | Dedupe identical objects / drop orphans (pypdf) |
-| **Linearize** | off | Web-optimize; needs `coversheets[optimize]` (pikepdf) or `qpdf` |
-| **OCR** | off | Makes text searchable via ocrmypdf; needs `coversheets[ocr]` + Tesseract |
-| Name output after label | off | `+Label.pdf` instead of `+OriginalName.pdf` |
-| Open folder when done | on | GUI only |
+| GUI label | Default | Notes |
+|-----------|---------|--------|
+| **Remove hidden document info** | on | Strips document Info + XMP |
+| **Make text searchable (OCR)** | off | Needs full Windows installer (or `coversheets[ocr]` + Tesseract) |
+| **Replace existing +files** | off | Overwrite prior outputs |
+| **Open folder when finished** | on | GUI only |
+| *More options →* Compress / shrink duplicates / faster web viewing | compress+optimize on; linearize off | Advanced; linearize needs full build / pikepdf |
+| *More options →* Name output after cover title | off | `+Title.pdf` instead of `+OriginalName.pdf` |
 
 ## Usage (headless batch)
 
@@ -130,7 +129,7 @@ pytest
 ```
 coversheets/
   __main__.py         # python -m coversheets
-  gui/                # CustomTkinter list UI (app, job list, dialogs, theme)
+  gui/                # CustomTkinter UI (app, options, preview, welcome, dnd)
   cover.py            # cover sheet generation (ReportLab)
   merge.py            # prepend cover + write
   pdf_ops.py          # metadata strip, OCR, optimize, linearize
@@ -161,9 +160,9 @@ You can also run the workflow manually (**Actions → Release builds → Run wor
 
 ```bash
 # Tag and publish a release (example)
-git tag v0.9.1
-git push origin v0.9.1
-# Then create a Release from that tag in the GitHub UI (or: gh release create v0.9.1)
+git tag v0.10.0
+git push origin v0.10.0
+# Then create a Release from that tag in the GitHub UI (or: gh release create v0.10.0)
 ```
 
 ## Building locally (optional)

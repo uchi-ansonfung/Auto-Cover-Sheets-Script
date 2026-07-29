@@ -36,6 +36,7 @@ def test_save_and_load_roundtrip(tmp_path: Path) -> None:
         last_folder=str(tmp_path / "in"),
         last_file_dialog_dir=str(tmp_path / "in"),
         output_dir=str(tmp_path / "out"),
+        output_mode="folder",
         window_geometry="1000x700+10+20",
         appearance_mode="Dark",
         compress=False,
@@ -47,6 +48,9 @@ def test_save_and_load_roundtrip(tmp_path: Path) -> None:
         ocr=True,
         ocr_language="eng+spa",
         open_when_done=False,
+        show_welcome=False,
+        advanced_expanded=True,
+        preset="custom",
     )
     (tmp_path / "in").mkdir()
     (tmp_path / "out").mkdir()
@@ -56,6 +60,7 @@ def test_save_and_load_roundtrip(tmp_path: Path) -> None:
 
     assert loaded.last_folder == original.last_folder
     assert loaded.output_dir == original.output_dir
+    assert loaded.output_mode == "folder"
     assert loaded.window_geometry == original.window_geometry
     assert loaded.appearance_mode == "Dark"
     assert loaded.compress is False
@@ -67,8 +72,21 @@ def test_save_and_load_roundtrip(tmp_path: Path) -> None:
     assert loaded.ocr is True
     assert loaded.ocr_language == "eng+spa"
     assert loaded.open_when_done is False
+    assert loaded.show_welcome is False
+    assert loaded.advanced_expanded is True
+    assert loaded.preset == "custom"
     assert loaded.resolved_last_folder() == (tmp_path / "in").resolve()
     assert loaded.resolved_output_dir() == (tmp_path / "out").resolve()
+
+
+def test_legacy_output_dir_implies_folder_mode() -> None:
+    prefs = preferences_from_dict({"output_dir": "/tmp/out"})
+    assert prefs.output_mode == "folder"
+
+
+def test_invalid_preset_normalized() -> None:
+    prefs = preferences_from_dict({"preset": "nope"})
+    assert prefs.preset == "recommended"
 
 
 def test_load_missing_file_returns_defaults(tmp_path: Path) -> None:

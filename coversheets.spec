@@ -19,12 +19,18 @@ hiddenimports = [
     "coversheets.gui.dialogs",
     "coversheets.gui.job_list",
     "coversheets.gui.theme",
+    "coversheets.gui.copy",
+    "coversheets.gui.options_panel",
+    "coversheets.gui.preview",
+    "coversheets.gui.welcome",
+    "coversheets.gui.dnd",
     "coversheets.util",
     "coversheets.options",
     "coversheets.pdf_ops",
     "coversheets.prefs",
     "coversheets.bundled_tools",
     "customtkinter",
+    "tkinterdnd2",
 ]
 
 datas = []
@@ -45,6 +51,7 @@ def _try_collect(package: str) -> None:
 
 # CustomTkinter ships theme JSON/assets required at runtime.
 _try_collect("customtkinter")
+_try_collect("tkinterdnd2")
 
 # Optional extras — only present for full installer / local .[full] builds.
 _try_collect("pikepdf")
