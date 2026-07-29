@@ -37,4 +37,12 @@ windows-full/
     ...
 ```
 
-At runtime, `coversheets.bundled_tools` prepends those folders to `PATH`.
+At runtime, `coversheets.bundled_tools` prepends those folders to `PATH` and sets
+`GS_LIB` / `GS_DLL` for the portable Ghostscript tree.
+
+**JBIG2 / jbig2dec:** Many scanned exhibit PDFs compress pages with
+`/JBIG2Decode`. OCR rasterizes those pages through Ghostscript, which needs its
+full install tree (`lib\`, `Resource\`, `gsdll64.dll`) — not just `gswin64c.exe`.
+That is jbig2dec (decode), not the optional jbig2enc encoder used for output
+optimization. Stage the whole Ghostscript folder from Program Files / Chocolatey;
+do not strip it down to `bin\` only.

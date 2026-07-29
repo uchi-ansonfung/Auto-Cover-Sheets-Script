@@ -135,6 +135,32 @@ def linearize_available() -> bool:
         return shutil.which("qpdf") is not None
 
 
+def _ocr_failure_message(detail: str) -> str:
+    """Annotate common OCR backend failures with actionable context."""
+    text = (detail or "").strip() or "unknown error"
+    lowered = text.lower()
+    if "jbig2dec" in lowered or (
+        "jbig2" in lowered and ("decode" in lowered or "missing" in lowered or "not found" in lowered)
+    ):
+        return (
+            f"{text}\n\n"
+            "This PDF uses JBIG2 image compression. OCR needs Ghostscript with "
+            "jbig2dec support to rasterize those pages. The Windows full installer "
+            "bundles Ghostscript for this; if you still see this error, reinstall "
+            "with the coversheets-*-windows-x64-setup.exe package (not the slim "
+            "portable exe), or install Ghostscript system-wide from "
+            "https://ghostscript.com/releases/gsdnld.html"
+        )
+    if "ghostscript" in lowered or "gswin" in lowered:
+        return (
+            f"{text}\n\n"
+            "Ghostscript was not found or could not start. The Windows full "
+            "installer places ghostscript\\ next to coversheets.exe; reinstall "
+            "that package, or install Ghostscript system-wide."
+        )
+    return text
+
+
 def run_ocr(
     path: Path | str,
     *,
@@ -162,16 +188,21 @@ def run_ocr(
         try:
             import ocrmypdf
 
-            ocrmypdf.ocr(
-                str(pdf_path),
-                str(tmp_path),
-                language=language,
-                skip_text=skip_text,
-                force_ocr=not skip_text,
-                progress_bar=False,
-                # Keep layout; do not deskew aggressively by default.
-                optimize=0,
-            )
+            try:
+                ocrmypdf.ocr(
+                    str(pdf_path),
+                    str(tmp_path),
+                    language=language,
+                    skip_text=skip_text,
+                    force_ocr=not skip_text,
+                    progress_bar=False,
+                    # Keep layout; skip jbig2enc image re-encode (optional).
+                    # Input JBIG2 still needs Ghostscript+jbig2dec to rasterize.
+                    optimize=0,
+                )
+            except Exception as exc:
+                # ocrmypdf raises several exception types; rewrap with context.
+                raise RuntimeError(_ocr_failure_message(str(exc))) from exc
         except ImportError:
             cmd = [
                 "ocrmypdf",
@@ -190,7 +221,8 @@ def run_ocr(
             if proc.returncode != 0:
                 detail = (proc.stderr or proc.stdout or "").strip()
                 raise RuntimeError(
-                    f"ocrmypdf failed (exit {proc.returncode}): {detail or 'unknown error'}"
+                    f"ocrmypdf failed (exit {proc.returncode}): "
+                    f"{_ocr_failure_message(detail)}"
                 ) from None
 
         tmp_path.replace(pdf_path)

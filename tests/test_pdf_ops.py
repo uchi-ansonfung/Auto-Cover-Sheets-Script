@@ -84,3 +84,21 @@ def test_run_ocr_calls_ocrmypdf(tmp_path: Path) -> None:
     kwargs = fake_mod.ocr.call_args.kwargs
     assert kwargs["language"] == "eng"
     assert kwargs["skip_text"] is True
+    assert kwargs["optimize"] == 0
+
+
+def test_run_ocr_annotates_jbig2dec_failure(tmp_path: Path) -> None:
+    path = _one_page_pdf(tmp_path / "scan.pdf")
+    fake_mod = MagicMock()
+    fake_mod.ocr.side_effect = RuntimeError(
+        "This version of Ghostscript was compiled without the jbig2dec library"
+    )
+
+    with (
+        patch("coversheets.pdf_ops.ocr_available", return_value=True),
+        patch.dict("sys.modules", {"ocrmypdf": fake_mod}),
+        pytest.raises(RuntimeError, match="JBIG2 image compression") as ei,
+    ):
+        run_ocr(path)
+
+    assert "jbig2dec" in str(ei.value).lower()

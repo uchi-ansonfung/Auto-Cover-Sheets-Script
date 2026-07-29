@@ -238,6 +238,25 @@ $gsOk = Get-ChildItem (Join-Path $StageDir "ghostscript") -Filter "gswin*.exe" -
     Select-Object -First 1
 if (-not $gsOk) { throw "Ghostscript CLI not found under dist\windows-full\ghostscript" }
 
+# Portable Ghostscript needs lib/ (and usually gsdll*.dll) so jbig2dec can
+# decode scanned PDFs that use /JBIG2Decode. A bin-only copy is not enough.
+$gsLib = Join-Path $StageDir "ghostscript\lib"
+if (-not (Test-Path $gsLib)) {
+    # Some layouts nest version dirs; accept any lib folder under ghostscript.
+    $gsLib = Get-ChildItem (Join-Path $StageDir "ghostscript") -Filter "lib" -Directory -Recurse -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if (-not $gsLib) {
+        throw "Ghostscript lib/ folder missing under dist\windows-full\ghostscript (needed for JBIG2/jbig2dec)"
+    }
+}
+$gsDll = Get-ChildItem (Join-Path $StageDir "ghostscript") -Filter "gsdll*.dll" -Recurse -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+if (-not $gsDll) {
+    Write-Warning "gsdll*.dll not found under staged Ghostscript; JBIG2 decode may fail on some systems"
+} else {
+    Write-Host "  Ghostscript DLL: $($gsDll.FullName)"
+}
+
 Write-Host "Staged payload:"
 Get-ChildItem $StageDir | Format-Table Name, Length -AutoSize
 

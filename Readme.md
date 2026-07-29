@@ -161,9 +161,9 @@ You can also run the workflow manually (**Actions → Release builds → Run wor
 
 ```bash
 # Tag and publish a release (example)
-git tag v0.9.0
-git push origin v0.9.0
-# Then create a Release from that tag in the GitHub UI (or: gh release create v0.9.0)
+git tag v0.9.1
+git push origin v0.9.1
+# Then create a Release from that tag in the GitHub UI (or: gh release create v0.9.1)
 ```
 
 ## Building locally (optional)
@@ -193,4 +193,4 @@ powershell -ExecutionPolicy Bypass -File scripts\build_windows_full.ps1
 # → dist\windows-full\   (staged payload used by Inno)
 ```
 
-The frozen app looks next to `coversheets.exe` for `tesseract\` and `ghostscript\` and puts them on `PATH` automatically (`coversheets/bundled_tools.py`).
+The frozen app looks next to `coversheets.exe` for `tesseract\` and `ghostscript\` and puts them on `PATH` automatically (`coversheets/bundled_tools.py`). It also sets `GS_LIB` / `GS_DLL` for the portable Ghostscript tree so scanned PDFs that use JBIG2 (`/JBIG2Decode`) can be rasterized — that path needs Ghostscript’s bundled jbig2dec support, not the optional `jbig2enc` encoder.
