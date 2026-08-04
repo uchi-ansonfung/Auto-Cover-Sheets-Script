@@ -48,6 +48,7 @@ def test_save_and_load_roundtrip(tmp_path: Path) -> None:
         ocr=True,
         ocr_language="eng+spa",
         open_when_done=False,
+        vertical_position="top_third",
         show_welcome=False,
         advanced_expanded=True,
         preset="custom",
@@ -72,11 +73,17 @@ def test_save_and_load_roundtrip(tmp_path: Path) -> None:
     assert loaded.ocr is True
     assert loaded.ocr_language == "eng+spa"
     assert loaded.open_when_done is False
+    assert loaded.vertical_position == "top_third"
     assert loaded.show_welcome is False
     assert loaded.advanced_expanded is True
     assert loaded.preset == "custom"
     assert loaded.resolved_last_folder() == (tmp_path / "in").resolve()
     assert loaded.resolved_output_dir() == (tmp_path / "out").resolve()
+
+
+def test_preferences_invalid_vertical_position_defaults_to_center() -> None:
+    prefs = preferences_from_dict({"vertical_position": "sideways"})
+    assert prefs.vertical_position == "center"
 
 
 def test_legacy_output_dir_implies_folder_mode() -> None:

@@ -48,6 +48,12 @@ def test_plain_option_lines() -> None:
     )
     assert any("searchable" in line.lower() for line in lines)
     assert any("document info" in line.lower() for line in lines)
+    assert any("title position: center" in line.lower() for line in lines)
+
+    top_lines = plain_option_lines(
+        ProcessOptions(vertical_position="top_third")
+    )
+    assert any("top third" in line.lower() for line in top_lines)
 
 
 def test_done_headline_success() -> None:

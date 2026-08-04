@@ -58,6 +58,7 @@ def test_parser_flags(tmp_path: Path) -> None:
     assert args.ocr_force is True
     assert args.optimize is False
     assert args.linearize is True
+    assert args.vertical_position == "center"
 
     opts = options_from_args(args)
     assert opts.compress is False
@@ -66,6 +67,14 @@ def test_parser_flags(tmp_path: Path) -> None:
     assert opts.ocr_skip_text is False
     assert opts.optimize is False
     assert opts.linearize is True
+    assert opts.vertical_position == "center"
+
+
+def test_parser_vertical_position() -> None:
+    args = build_parser().parse_args(["--vertical-position", "top_third"])
+    assert args.vertical_position == "top_third"
+    opts = options_from_args(args)
+    assert opts.vertical_position == "top_third"
 
 
 def test_main_rejects_missing_dir_in_batch(tmp_path: Path) -> None:

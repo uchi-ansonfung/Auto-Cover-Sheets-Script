@@ -24,6 +24,11 @@ PRESET_LABELS = {
     "custom": "Custom",
 }
 
+VERTICAL_POSITION_LABELS = {
+    "center": "Center",
+    "top_third": "Top third",
+}
+
 # --- Messages ---------------------------------------------------------------
 
 
@@ -97,6 +102,11 @@ def status_for_jobs(total: int, included: int) -> str:
 def plain_option_lines(options: ProcessOptions) -> list[str]:
     """Short plain-English lines for the progress log."""
     lines: list[str] = []
+    position = (options.vertical_position or "center").strip().lower()
+    if position == "top_third":
+        lines.append("Title position: top third")
+    else:
+        lines.append("Title position: center")
     if options.strip_metadata:
         lines.append("Remove hidden document info")
     if options.ocr:

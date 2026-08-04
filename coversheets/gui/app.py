@@ -194,6 +194,7 @@ class CoverSheetsApp(CoverSheetsAppRoot):  # type: ignore[misc, valid-type]
             dialog_initial_dir=self._dialog_initial_dir,
         )
         self.options.pack(fill="x", padx=pad_x, pady=(0, pad_y))
+        self._sync_preview_position()
 
         # Bottom status + generate
         bottom = ctk.CTkFrame(self, fg_color="transparent")
@@ -285,9 +286,16 @@ class CoverSheetsApp(CoverSheetsAppRoot):  # type: ignore[misc, valid-type]
 
     def _on_options_changed(self) -> None:
         self._update_steps()
+        self._sync_preview_position()
         # Auto-save lightly so advanced/output mode stick
         try:
             self._prefs = self._collect_preferences()
+        except Exception:
+            pass
+
+    def _sync_preview_position(self) -> None:
+        try:
+            self.preview.set_vertical_position(self.options.vertical_position_id())
         except Exception:
             pass
 
@@ -562,6 +570,7 @@ class CoverSheetsApp(CoverSheetsAppRoot):  # type: ignore[misc, valid-type]
             ocr_skip_text=True,
             optimize=self.options.optimize_var.get(),
             linearize=self.options.linearize_var.get() and linearize_available(),
+            vertical_position=self.options.vertical_position_id(),
         )
         open_when_done = self.options.open_when_done_var.get()
 

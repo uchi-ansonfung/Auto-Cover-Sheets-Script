@@ -65,6 +65,7 @@ The first launch shows a short welcome. The GUI **remembers preferences** (optio
 
 | GUI label | Default | Notes |
 |-----------|---------|--------|
+| **Title position** | Center | Cover title vertically at **Center** or **Top third** of the page |
 | **Remove hidden document info** | on | Strips document Info + XMP |
 | **Make text searchable (OCR)** | off | Needs full Windows installer (or `coversheets[ocr]` + Tesseract) |
 | **Replace existing +files** | off | Overwrite prior outputs |
@@ -83,6 +84,7 @@ coversheets --batch /path/to/pdfs --strip-metadata --linearize
 coversheets --batch /path/to/pdfs --no-optimize
 coversheets --batch /path/to/pdfs --ocr --ocr-language eng
 coversheets --batch /path/to/pdfs --no-strip-metadata
+coversheets --batch /path/to/pdfs --vertical-position top_third
 coversheets --version
 ```
 
@@ -95,6 +97,7 @@ coversheets --version
 | `--no-compress` | Skip lossless page-stream compression |
 | `--force` | Overwrite existing `+Name.pdf` |
 | `--rename-to-label` | Name outputs `+Label.pdf` |
+| `--vertical-position center\|top_third` | Cover title vertical placement (default `center`) |
 | `--strip-metadata` / `--no-strip-metadata` | True metadata strip (default on) |
 | `--optimize` / `--no-optimize` | Dedupe PDF objects (default on) |
 | `--linearize` | Linearize output (pikepdf or qpdf) |
@@ -106,7 +109,7 @@ coversheets --version
 
 ## What this program does
 
-* Adds a letter-sized coversheet with centered text (36-pt Times Bold; wraps if needed).
+* Adds a letter-sized coversheet with title text (36-pt Times Bold; wraps if needed), placed at the **center** or **top third** of the page.
 * Cover text comes from the **editable label** in the GUI (or the filename stem in batch mode).
 * Optional **true metadata strip** (document Info dictionary + XMP).
 * Optional **OCR** path (ocrmypdf) so scanned bodies become text-searchable.
@@ -162,9 +165,9 @@ You can also run the workflow manually (**Actions → Release builds → Run wor
 
 ```bash
 # Tag and publish a release (example)
-git tag v0.10.0
-git push origin v0.10.0
-# Then create a Release from that tag in the GitHub UI (or: gh release create v0.10.0)
+git tag v0.10.1
+git push origin v0.10.1
+# Then create a Release from that tag in the GitHub UI (or: gh release create v0.10.1)
 ```
 
 ## Building locally (optional)

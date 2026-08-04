@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from coversheets.cover import DEFAULT_VERTICAL_POSITION, normalize_vertical_position
+
 
 @dataclass(frozen=True)
 class ProcessOptions:
@@ -23,10 +25,17 @@ class ProcessOptions:
     optimize: bool = True
     # Web-optimized linearization via pikepdf or qpdf CLI.
     linearize: bool = False
+    # Cover title vertical placement: "center" | "top_third".
+    vertical_position: str = DEFAULT_VERTICAL_POSITION
 
     def describe(self) -> list[str]:
         """Human-readable enabled options for logs."""
         lines: list[str] = []
+        position = normalize_vertical_position(self.vertical_position)
+        if position == "top_third":
+            lines.append("title position: top third")
+        else:
+            lines.append("title position: center")
         if self.compress:
             lines.append("compress page streams")
         if self.strip_metadata:

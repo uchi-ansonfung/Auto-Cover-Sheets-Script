@@ -82,6 +82,21 @@ def test_process_jobs_uses_custom_label(sample_pdf: Path, tmp_path: Path) -> Non
     assert (out_dir / f"+{sample_pdf.name}").is_file()
 
 
+def test_process_jobs_top_third_vertical_position(
+    sample_pdf: Path, tmp_path: Path
+) -> None:
+    job = JobItem.from_path(sample_pdf, label="Top Third Title")
+    out_dir = tmp_path / "out"
+    result = process_jobs(
+        [job],
+        output_dir=out_dir,
+        options=ProcessOptions(compress=False, vertical_position="top_third"),
+    )
+    assert result.ok
+    assert result.succeeded == 1
+    assert (out_dir / f"+{sample_pdf.name}").is_file()
+
+
 def test_process_jobs_rename_to_label(sample_pdf: Path, tmp_path: Path) -> None:
     job = JobItem.from_path(sample_pdf, label="Exhibit Z")
     out_dir = tmp_path / "out"

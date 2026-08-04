@@ -9,8 +9,10 @@ from typing import Any
 import customtkinter as ctk
 from tkinter import filedialog
 
+from coversheets.cover import DEFAULT_VERTICAL_POSITION, normalize_vertical_position
 from coversheets.gui.copy import (
     PRESET_LABELS,
+    VERTICAL_POSITION_LABELS,
     linearize_unavailable_message,
     ocr_unavailable_message,
     output_example,
@@ -50,6 +52,12 @@ class OptionsPanel(ctk.CTkFrame):
         self.ocr_var = ctk.BooleanVar(value=prefs.ocr)
         self.ocr_language_var = ctk.StringVar(value=prefs.ocr_language or "eng")
         self.open_when_done_var = ctk.BooleanVar(value=prefs.open_when_done)
+        position_id = normalize_vertical_position(prefs.vertical_position)
+        self.vertical_position_var = ctk.StringVar(
+            value=VERTICAL_POSITION_LABELS.get(
+                position_id, VERTICAL_POSITION_LABELS[DEFAULT_VERTICAL_POSITION]
+            )
+        )
         self.preset_var = ctk.StringVar(
             value=PRESET_LABELS.get(prefs.preset, PRESET_LABELS["recommended"])
         )
@@ -83,10 +91,19 @@ class OptionsPanel(ctk.CTkFrame):
             ocr=self.ocr_var.get(),
             ocr_language=self.ocr_language_var.get().strip() or "eng",
             open_when_done=self.open_when_done_var.get(),
+            vertical_position=self.vertical_position_id(),
             show_welcome=base.show_welcome,
             advanced_expanded=self._advanced_open,
             preset=preset_id,
         )
+
+    def vertical_position_id(self) -> str:
+        """Return canonical vertical_position id from the UI label."""
+        label = self.vertical_position_var.get()
+        for key, value in VERTICAL_POSITION_LABELS.items():
+            if value == label:
+                return key
+        return DEFAULT_VERTICAL_POSITION
 
     def resolved_output_dir(self) -> Path | None:
         if self.output_mode_var.get() != "folder":
@@ -165,6 +182,29 @@ class OptionsPanel(ctk.CTkFrame):
             anchor="w",
             justify="left",
         ).pack(fill="x", padx=pad_x, pady=(0, pad_y))
+
+        # Title vertical position (layout)
+        pos_row = ctk.CTkFrame(self, fg_color="transparent")
+        pos_row.pack(fill="x", padx=pad_x, pady=(0, 4))
+        ctk.CTkLabel(
+            pos_row, text="Title position", font=ctk.CTkFont(weight="bold")
+        ).pack(side="left")
+        self.center_pos_radio = ctk.CTkRadioButton(
+            pos_row,
+            text=VERTICAL_POSITION_LABELS["center"],
+            variable=self.vertical_position_var,
+            value=VERTICAL_POSITION_LABELS["center"],
+            command=self._on_vertical_position,
+        )
+        self.center_pos_radio.pack(side="left", padx=(8, 8))
+        self.top_third_pos_radio = ctk.CTkRadioButton(
+            pos_row,
+            text=VERTICAL_POSITION_LABELS["top_third"],
+            variable=self.vertical_position_var,
+            value=VERTICAL_POSITION_LABELS["top_third"],
+            command=self._on_vertical_position,
+        )
+        self.top_third_pos_radio.pack(side="left", padx=(0, 8))
 
         # Legal options
         legal = ctk.CTkFrame(self, fg_color="transparent")
@@ -293,6 +333,10 @@ class OptionsPanel(ctk.CTkFrame):
     def _on_output_mode(self) -> None:
         self._sync_output_widgets()
         self._update_example()
+        self.mark_custom_if_needed()
+        self._notify()
+
+    def _on_vertical_position(self) -> None:
         self.mark_custom_if_needed()
         self._notify()
 

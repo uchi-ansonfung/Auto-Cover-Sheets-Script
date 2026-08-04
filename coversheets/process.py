@@ -242,6 +242,7 @@ def process_jobs(
         ocr_skip_text=base.ocr_skip_text,
         optimize=base.optimize,
         linearize=base.linearize,
+        vertical_position=base.vertical_position,
     )
 
     write = log if log is not None else print
@@ -324,7 +325,10 @@ def process_jobs(
 
         write(f"{prefix} Processing {display}  (label={job.label!r})...")
         try:
-            cover_buffer = create_cover_sheet(job.label)
+            cover_buffer = create_cover_sheet(
+                job.label,
+                vertical_position=opts.vertical_position,
+            )
             add_cover_to_pdf(
                 cover_buffer,
                 source,

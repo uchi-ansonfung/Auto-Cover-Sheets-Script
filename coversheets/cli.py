@@ -8,6 +8,7 @@ from pathlib import Path
 
 from coversheets import __author__, __version__
 from coversheets.bundled_tools import configure_bundled_tools
+from coversheets.cover import DEFAULT_VERTICAL_POSITION, VERTICAL_POSITIONS
 from coversheets.options import ProcessOptions
 from coversheets.process import process_folder
 
@@ -110,6 +111,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--vertical-position",
+        choices=sorted(VERTICAL_POSITIONS),
+        default=DEFAULT_VERTICAL_POSITION,
+        metavar="POS",
+        help=(
+            "Vertical placement of cover title text: center (default) or "
+            "top_third (batch mode)."
+        ),
+    )
+    parser.add_argument(
         "-n",
         "--dry-run",
         action="store_true",
@@ -136,6 +147,7 @@ def options_from_args(args: argparse.Namespace) -> ProcessOptions:
         ocr_skip_text=not args.ocr_force,
         optimize=args.optimize,
         linearize=args.linearize,
+        vertical_position=args.vertical_position,
     )
 
 

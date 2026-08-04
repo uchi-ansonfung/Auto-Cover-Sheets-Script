@@ -9,6 +9,12 @@ from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Any
 
+from coversheets.cover import (
+    DEFAULT_VERTICAL_POSITION,
+    VERTICAL_POSITIONS,
+    normalize_vertical_position,
+)
+
 
 PREFS_VERSION = 1
 
@@ -42,6 +48,8 @@ class AppPreferences:
     ocr: bool = False
     ocr_language: str = "eng"
     open_when_done: bool = True
+    # Cover title vertical placement: "center" | "top_third"
+    vertical_position: str = DEFAULT_VERTICAL_POSITION
     # Usability overhaul
     show_welcome: bool = True
     advanced_expanded: bool = False
@@ -166,6 +174,11 @@ def preferences_from_dict(raw: dict[str, Any]) -> AppPreferences:
     if preset not in PRESET_IDS:
         preset = "recommended"
     prefs.preset = preset
+
+    position = normalize_vertical_position(prefs.vertical_position)
+    if position not in VERTICAL_POSITIONS:
+        position = DEFAULT_VERTICAL_POSITION
+    prefs.vertical_position = position
     return prefs
 
 

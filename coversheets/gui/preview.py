@@ -6,12 +6,18 @@ import tkinter as tk
 
 import customtkinter as ctk
 
+from coversheets.cover import (
+    DEFAULT_VERTICAL_POSITION,
+    normalize_vertical_position,
+    preview_rely_for_position,
+)
+
 
 class CoverPreview(ctk.CTkFrame):
     """
     Portrait card that approximates the letter cover sheet.
 
-    Shows the cover title centered in bold, matching the real PDF layout
+    Shows the cover title in bold, matching the real PDF layout
     closely enough for non-technical users to trust the label.
     """
 
@@ -19,6 +25,7 @@ class CoverPreview(ctk.CTkFrame):
         super().__init__(master, **kwargs)  # type: ignore[arg-type]
         self._title = ""
         self._filename = ""
+        self._vertical_position = DEFAULT_VERTICAL_POSITION
 
         ctk.CTkLabel(
             self,
@@ -47,7 +54,7 @@ class CoverPreview(ctk.CTkFrame):
             justify="center",
             wraplength=170,
         )
-        self._title_label.place(relx=0.5, rely=0.5, anchor="center")
+        self._apply_title_place()
 
         self._caption = ctk.CTkLabel(
             self,
@@ -76,6 +83,15 @@ class CoverPreview(ctk.CTkFrame):
             self._caption.configure(text=f"Selected: {filename}")
         else:
             self._caption.configure(text="")
+
+    def set_vertical_position(self, vertical_position: str) -> None:
+        """Update title placement to match PDF vertical_position option."""
+        self._vertical_position = normalize_vertical_position(vertical_position)
+        self._apply_title_place()
+
+    def _apply_title_place(self) -> None:
+        rely = preview_rely_for_position(self._vertical_position)
+        self._title_label.place(relx=0.5, rely=rely, anchor="center")
 
     def _on_resize(self, _event: tk.Event | None = None) -> None:  # type: ignore[type-arg]
         # Keep page roughly letter-shaped within available width.
