@@ -4,7 +4,7 @@
 
 Add letter-sized cover sheets to PDFs. Primary UX is a **GUI list** (edit labels, generate with progress). Headless batch mode remains available for scripts.
 
-**v0.9** — GUI rebuilt with CustomTkinter (modern layout, light/dark theme, custom job list).
+**v0.10.1** — GUI rebuilt with CustomTkinter (modern layout, light/dark theme, custom job list); added vertical positioning options.
 
 ## Install (from source)
 
