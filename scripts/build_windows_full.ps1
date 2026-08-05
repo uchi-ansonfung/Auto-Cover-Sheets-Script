@@ -7,7 +7,8 @@
 #   powershell -ExecutionPolicy Bypass -File scripts/build_windows_full.ps1
 #   powershell -File scripts/build_windows_full.ps1 -SkipInstallDeps
 #
-# CI installs choco packages + Inno Setup before calling this script.
+# CI installs Tesseract + Inno Setup via choco before calling this script
+# (Ghostscript is not installed or staged).
 
 [CmdletBinding()]
 param(

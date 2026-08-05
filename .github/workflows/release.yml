@@ -129,7 +129,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Full Windows installer: app + pikepdf/ocrmypdf + Tesseract + Ghostscript.
+  # Full Windows installer: app + pikepdf/ocrmypdf/pypdfium2 + Tesseract.
+  # Ghostscript is not required (OCRmyPDF 17+ rasterizes with pypdfium2).
   windows-full:
     name: Build (windows-x64-setup)
     runs-on: windows-latest
@@ -165,13 +166,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[full,dev]"
-          python -c "import coversheets, pikepdf, ocrmypdf; print('coversheets', coversheets.__version__)"
+          python -c "import coversheets, pikepdf, ocrmypdf, pypdfium2; print('coversheets', coversheets.__version__)"
           pytest -q
 
-      - name: Install Tesseract, Ghostscript, Inno Setup
+      - name: Install Tesseract and Inno Setup
         shell: powershell
         run: |
-          choco install tesseract ghostscript innosetup -y --no-progress
+          # Ghostscript is intentionally omitted — OCR uses pypdfium2 in the frozen app.
+          choco install tesseract innosetup -y --no-progress
           # Refresh PATH for subsequent steps in this job via GITHUB_PATH where possible.
           $machine = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
           $user = [System.Environment]::GetEnvironmentVariable("Path", "User")
