@@ -17,7 +17,7 @@ class ProcessOptions:
     rename_to_label: bool = False
     # Document Info + XMP removal (not just "don't copy source fields").
     strip_metadata: bool = True
-    # Optional post-process: OCR via ocrmypdf (requires extra install + tesseract).
+    # Optional post-process: OCR via ocrmypdf + pypdfium2 (+ system/bundled Tesseract).
     ocr: bool = False
     ocr_language: str = "eng"
     ocr_skip_text: bool = True

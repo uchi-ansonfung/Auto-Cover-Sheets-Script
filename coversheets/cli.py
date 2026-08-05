@@ -152,7 +152,7 @@ def options_from_args(args: argparse.Namespace) -> ProcessOptions:
 
 
 def main(argv: list[str] | None = None) -> int:
-    # Frozen/installer builds ship Tesseract + Ghostscript next to the exe.
+    # Frozen/installer builds ship Tesseract next to the exe (pypdfium2 is baked in).
     configure_bundled_tools()
 
     parser = build_parser()

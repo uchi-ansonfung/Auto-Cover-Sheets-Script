@@ -4,7 +4,6 @@
 ;   dist\windows-full\
 ;     coversheets.exe
 ;     tesseract\...
-;     ghostscript\...
 ;
 ; Build:
 ;   iscc /DMyAppVersion=0.8.3 /DPayloadDir=..\..\dist\windows-full installer\windows\coversheets.iss
@@ -58,11 +57,10 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Main app (PyInstaller one-file with pikepdf + ocrmypdf baked in).
+; Main app (PyInstaller one-file with pikepdf + ocrmypdf + pypdfium2 baked in).
 Source: "{#PayloadDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-; Bundled OCR engines (required for the OCR checkbox).
+; Bundled Tesseract (required for the OCR checkbox). PDF rasterization uses pypdfium2 inside the exe.
 Source: "{#PayloadDir}\tesseract\*"; DestDir: "{app}\tesseract"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#PayloadDir}\ghostscript\*"; DestDir: "{app}\ghostscript"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Optional readme next to the app.
 Source: "{#PayloadDir}\README-INSTALLED.txt"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 

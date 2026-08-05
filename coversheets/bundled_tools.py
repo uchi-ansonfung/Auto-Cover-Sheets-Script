@@ -7,20 +7,16 @@ Windows full installer layout (next to coversheets.exe)::
       tesseract.exe
       tessdata/eng.traineddata
       ...
-    ghostscript/
-      bin/gswin64c.exe
-      bin/gsdll64.dll
-      lib/
-      Resource/
-      ...
+
+OCR rasterization uses **pypdfium2** (bundled with the Python package extras).
+Tesseract remains a native binary that must sit next to the app (or on PATH).
+
+An optional ``ghostscript/`` tree is still discovered if present (legacy
+installs or a system Ghostscript on PATH) but is **not** required and is not
+shipped by current full-installer builds.
 
 Call :func:`configure_bundled_tools` early at process start so OCR helpers can
-find Tesseract and Ghostscript without a system-wide install.
-
-Portable Ghostscript also needs ``GS_LIB`` / ``GS_DLL`` so it can load its
-runtime files (including JBIG2 decode support via jbig2dec). Without those,
-scanned PDFs that use ``/JBIG2Decode`` often fail OCR with a jbig2dec error
-even though ``gswin64c.exe`` is on ``PATH``.
+find Tesseract without a system-wide install.
 """
 
 from __future__ import annotations
@@ -88,7 +84,11 @@ def find_bundled_tesseract_dir(root: Path | None = None) -> Path | None:
 
 
 def find_bundled_ghostscript_bin(root: Path | None = None) -> Path | None:
-    """Return the directory containing a bundled Ghostscript CLI, if any."""
+    """
+    Return the directory containing a bundled Ghostscript CLI, if any.
+
+    Optional legacy layout only — current installers do not ship Ghostscript.
+    """
     base = root if root is not None else install_root()
     if base is None:
         return None
@@ -142,12 +142,10 @@ def _ghostscript_lib_dirs(gs_root: Path) -> list[Path]:
 
 def _configure_ghostscript_env(gs_bin: Path, found: dict[str, str]) -> None:
     """
-    Point portable Ghostscript at its own lib/DLL tree.
+    Point portable Ghostscript at its own lib/DLL tree when present.
 
-    System installs usually get this from the registry; the Windows full
-    installer copies Ghostscript next to the app, so registry entries are
-    absent and GS_LIB/GS_DLL must be set explicitly. That is what enables
-    JBIG2 decoding (jbig2dec linked into gsdll) for scanned exhibit PDFs.
+    Only used as an optional OCRmyPDF fallback; primary rasterization uses
+    pypdfium2 and does not need these variables.
     """
     # Artifex layout: <root>/bin/gswin64c.exe, <root>/lib, <root>/Resource
     gs_root = gs_bin.parent if gs_bin.name.lower() == "bin" else gs_bin
@@ -172,15 +170,15 @@ def _configure_ghostscript_env(gs_bin: Path, found: dict[str, str]) -> None:
 
 def configure_bundled_tools(*, force: bool = False) -> dict[str, str]:
     """
-    Prepend bundled Tesseract/Ghostscript dirs to ``PATH`` and set tessdata.
+    Prepend bundled Tesseract (and optional Ghostscript) dirs to ``PATH``.
 
-    Also sets ``GS_LIB`` / ``GS_DLL`` for portable Ghostscript so JBIG2
-    decode (jbig2dec) works without a system install.
+    Sets ``TESSDATA_PREFIX`` for a bundled tessdata tree. If a legacy
+    Ghostscript tree is present, also sets ``GS_LIB`` / ``GS_DLL``.
 
     Safe to call multiple times; subsequent calls are no-ops unless ``force``.
 
     Returns paths that were activated, e.g.
-    ``{"tesseract": "...", "ghostscript": "...", "tessdata": "..."}``.
+    ``{"tesseract": "...", "tessdata": "..."}`` and optionally ``ghostscript``.
     """
     global _CONFIGURED
     found: dict[str, str] = {}
@@ -200,6 +198,7 @@ def configure_bundled_tools(*, force: bool = False) -> dict[str, str]:
             os.environ.setdefault("TESSDATA_PREFIX", str(tessdata))
             found["tessdata"] = str(tessdata)
 
+    # Optional legacy Ghostscript (not shipped by current installers).
     gs_bin = find_bundled_ghostscript_bin(root)
     if gs_bin is not None:
         path_parts.append(str(gs_bin))
@@ -226,9 +225,30 @@ def tesseract_on_path() -> bool:
 
 
 def ghostscript_on_path() -> bool:
-    """True if a Ghostscript CLI is discoverable after configuration."""
+    """True if a Ghostscript CLI is discoverable (optional OCR fallback)."""
     configure_bundled_tools()
     for name in _ghostscript_names():
         if which(name) is not None:
             return True
     return False
+
+
+def pypdfium_available() -> bool:
+    """True if pypdfium2 can be imported (preferred OCR rasterizer)."""
+    try:
+        import pypdfium2  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def rasterizer_available() -> bool:
+    """
+    True if OCRmyPDF can rasterize pages without failing on missing backends.
+
+    Prefers pypdfium2; Ghostscript on PATH is an optional legacy fallback.
+    """
+    if pypdfium_available():
+        return True
+    return ghostscript_on_path()

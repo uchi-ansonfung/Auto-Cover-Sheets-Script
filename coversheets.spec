@@ -2,9 +2,9 @@
 # Build (slim):     pip install -e ".[dev]" && pyinstaller coversheets.spec
 # Build (full):     pip install -e ".[full,dev]" && pyinstaller coversheets.spec
 #
-# Full builds collect pikepdf + ocrmypdf when installed. Native Tesseract and
-# Ghostscript are staged next to the exe by scripts/build_windows_full.ps1
-# (not embedded in this Analysis).
+# Full builds collect pikepdf + ocrmypdf + pypdfium2 when installed. Native
+# Tesseract is staged next to the exe by scripts/build_windows_full.ps1
+# (not embedded in this Analysis). Ghostscript is no longer required.
 
 from PyInstaller.utils.hooks import collect_all
 
@@ -56,6 +56,8 @@ _try_collect("tkinterdnd2")
 # Optional extras — only present for full installer / local .[full] builds.
 _try_collect("pikepdf")
 _try_collect("ocrmypdf")
+# pypdfium2 ships native PDFium binaries required for OCR rasterization.
+_try_collect("pypdfium2")
 # Common ocrmypdf runtime pieces that are sometimes missed by analysis.
 for _pkg in (
     "pdfminer",

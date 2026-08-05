@@ -10,7 +10,11 @@ from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter
 
-from coversheets.bundled_tools import configure_bundled_tools, tesseract_on_path
+from coversheets.bundled_tools import (
+    configure_bundled_tools,
+    rasterizer_available,
+    tesseract_on_path,
+)
 
 
 class DependencyError(RuntimeError):
@@ -107,8 +111,9 @@ def _try_strip_with_pikepdf(pdf_path: Path) -> bool:
 
 def ocr_available() -> bool:
     """
-    True if OCR can run: ocrmypdf (package or CLI) plus a Tesseract binary.
+    True if OCR can run: ocrmypdf, a PDF rasterizer, and Tesseract.
 
+    Rasterization prefers pypdfium2 (OCRmyPDF 17+); Ghostscript is optional.
     Activates tools bundled next to a frozen/installed binary first.
     """
     configure_bundled_tools()
@@ -120,8 +125,11 @@ def ocr_available() -> bool:
         has_ocrmypdf = shutil.which("ocrmypdf") is not None
     if not has_ocrmypdf:
         return False
-    # Package alone is not enough; ocrmypdf shells out to tesseract.
-    return tesseract_on_path()
+    # Package alone is not enough; ocrmypdf shells out to tesseract and
+    # needs pypdfium2 (or Ghostscript) to rasterize pages.
+    if not tesseract_on_path():
+        return False
+    return rasterizer_available()
 
 
 def linearize_available() -> bool:
@@ -139,24 +147,37 @@ def _ocr_failure_message(detail: str) -> str:
     """Annotate common OCR backend failures with actionable context."""
     text = (detail or "").strip() or "unknown error"
     lowered = text.lower()
+    if "pypdfium" in lowered or "pdfium" in lowered:
+        return (
+            f"{text}\n\n"
+            "OCR rasterization uses pypdfium2. Reinstall with: "
+            "pip install 'coversheets[ocr]' (includes pypdfium2), or use the "
+            "Windows full setup package (coversheets-*-windows-x64-setup.exe)."
+        )
     if "jbig2dec" in lowered or (
-        "jbig2" in lowered and ("decode" in lowered or "missing" in lowered or "not found" in lowered)
+        "jbig2" in lowered
+        and ("decode" in lowered or "missing" in lowered or "not found" in lowered)
     ):
         return (
             f"{text}\n\n"
-            "This PDF uses JBIG2 image compression. OCR needs Ghostscript with "
-            "jbig2dec support to rasterize those pages. The Windows full installer "
-            "bundles Ghostscript for this; if you still see this error, reinstall "
-            "with the coversheets-*-windows-x64-setup.exe package (not the slim "
-            "portable exe), or install Ghostscript system-wide from "
-            "https://ghostscript.com/releases/gsdnld.html"
+            "This PDF uses JBIG2 image compression. OCR rasterizes pages with "
+            "pypdfium2 (PDFium). Reinstall 'coversheets[ocr]' / the Windows full "
+            "setup so pypdfium2 is present, then try again. If the problem "
+            "persists, the page image may be corrupt or use an unsupported JBIG2 variant."
         )
     if "ghostscript" in lowered or "gswin" in lowered:
         return (
             f"{text}\n\n"
-            "Ghostscript was not found or could not start. The Windows full "
-            "installer places ghostscript\\ next to coversheets.exe; reinstall "
-            "that package, or install Ghostscript system-wide."
+            "OCR tried Ghostscript as a fallback rasterizer. Install pypdfium2 "
+            "instead (pip install 'coversheets[ocr]') or use the Windows full "
+            "setup package — Ghostscript is no longer required."
+        )
+    if "tesseract" in lowered:
+        return (
+            f"{text}\n\n"
+            "Tesseract was not found or could not start. The Windows full "
+            "installer places tesseract\\ next to coversheets.exe; reinstall "
+            "that package, or install Tesseract system-wide."
         )
     return text
 
@@ -170,16 +191,17 @@ def run_ocr(
     """
     OCR ``path`` in place via ocrmypdf.
 
-    Requires the ``ocrmypdf`` package (and system Tesseract). Pages that
-    already contain text are skipped when ``skip_text`` is True.
+    Requires ocrmypdf ≥ 17, pypdfium2 (preferred rasterizer), and Tesseract.
+    Pages that already contain text are skipped when ``skip_text`` is True.
+    Output is a normal PDF (not PDF/A) so Ghostscript/veraPDF are not needed.
     """
     pdf_path = Path(path)
     configure_bundled_tools()
     if not ocr_available():
         raise DependencyError(
-            "OCR requires ocrmypdf and Tesseract. "
+            "OCR requires ocrmypdf, pypdfium2, and Tesseract. "
             "Install with: pip install 'coversheets[ocr]' and system Tesseract, "
-            "or use the Windows full installer (bundles both)."
+            "or use the Windows full installer (bundles Tesseract + Python OCR deps)."
         )
 
     language = (language or "eng").strip() or "eng"
@@ -196,9 +218,12 @@ def run_ocr(
                     skip_text=skip_text,
                     force_ocr=not skip_text,
                     progress_bar=False,
-                    # Keep layout; skip jbig2enc image re-encode (optional).
-                    # Input JBIG2 still needs Ghostscript+jbig2dec to rasterize.
+                    # Skip image re-encode (jbig2enc/pngquant optional).
                     optimize=0,
+                    # Prefer PDFium over Ghostscript (OCRmyPDF 17+).
+                    rasterizer="pypdfium",
+                    # Plain PDF avoids PDF/A conversion that may need GS/veraPDF.
+                    output_type="pdf",
                 )
             except Exception as exc:
                 # ocrmypdf raises several exception types; rewrap with context.
@@ -210,6 +235,10 @@ def run_ocr(
                 language,
                 "--optimize",
                 "0",
+                "--rasterizer",
+                "pypdfium",
+                "--output-type",
+                "pdf",
                 "--quiet",
             ]
             if skip_text:

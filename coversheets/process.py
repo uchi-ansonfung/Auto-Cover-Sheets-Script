@@ -195,7 +195,7 @@ def validate_options(options: ProcessOptions) -> None:
     """Raise ValueError if enabled options cannot run in this environment."""
     if options.ocr and not ocr_available():
         raise ValueError(
-            "OCR is enabled but ocrmypdf/Tesseract is not available. "
+            "OCR is enabled but ocrmypdf/pypdfium2/Tesseract is not available. "
             "Use the Windows full installer, or: pip install 'coversheets[ocr]' "
             "and install Tesseract."
         )

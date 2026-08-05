@@ -2,9 +2,11 @@
 
 Produces a per-user Setup wizard that installs:
 
-- `coversheets.exe` (PyInstaller one-file with `pikepdf` + `ocrmypdf`)
+- `coversheets.exe` (PyInstaller one-file with `pikepdf` + `ocrmypdf` + `pypdfium2`)
 - Bundled `tesseract\` (English OCR data)
-- Bundled `ghostscript\` (required by ocrmypdf)
+
+Ghostscript is **not** required. OCRmyPDF 17+ rasterizes pages with pypdfium2
+(PDFium), which is collected into the frozen exe.
 
 ## Build
 
@@ -32,17 +34,12 @@ windows-full/
     tesseract.exe
     tessdata/eng.traineddata
     ...
-  ghostscript/
-    bin/gswin64c.exe
-    ...
 ```
 
-At runtime, `coversheets.bundled_tools` prepends those folders to `PATH` and sets
-`GS_LIB` / `GS_DLL` for the portable Ghostscript tree.
+At runtime, `coversheets.bundled_tools` prepends `tesseract\` to `PATH` and
+sets `TESSDATA_PREFIX` when a bundled tessdata tree is present.
 
-**JBIG2 / jbig2dec:** Many scanned exhibit PDFs compress pages with
-`/JBIG2Decode`. OCR rasterizes those pages through Ghostscript, which needs its
-full install tree (`lib\`, `Resource\`, `gsdll64.dll`) — not just `gswin64c.exe`.
-That is jbig2dec (decode), not the optional jbig2enc encoder used for output
-optimization. Stage the whole Ghostscript folder from Program Files / Chocolatey;
-do not strip it down to `bin\` only.
+**JBIG2:** Scanned exhibit PDFs often use `/JBIG2Decode`. OCR rasterizes those
+pages through **pypdfium2** (bundled in the exe), not Ghostscript/jbig2dec.
+A legacy `ghostscript\` folder next to the exe is still detected if present,
+but current builds do not ship it.

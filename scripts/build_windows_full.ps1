@@ -1,6 +1,6 @@
 # Build the Windows "full" installer payload:
-#   1) PyInstaller one-file with pikepdf + ocrmypdf
-#   2) Stage portable Tesseract + Ghostscript next to the exe
+#   1) PyInstaller one-file with pikepdf + ocrmypdf + pypdfium2
+#   2) Stage portable Tesseract next to the exe (Ghostscript not required)
 #   3) Compile Inno Setup → dist/coversheets-<ver>-windows-x64-setup.exe
 #
 # Usage (from repo root, with a venv that has the project installed):
@@ -86,7 +86,7 @@ Getting started
 
 This install includes:
   • Linearize (pikepdf) — web-optimized PDFs
-  • OCR (English) — ocrmypdf + Tesseract + Ghostscript, bundled next to the app
+  • OCR (English) — ocrmypdf + pypdfium2 (baked in) + Tesseract (bundled next to the app)
 
 You do not need to install Python, Tesseract, or Ghostscript yourself.
 
@@ -97,7 +97,7 @@ Project: https://github.com/uchi-ansonfung/Auto-Cover-Sheets-Script
 "@
 Set-Content -Path (Join-Path $StageDir "README-INSTALLED.txt") -Value $ReadmeInstalled -Encoding UTF8
 
-# --- Tesseract + Ghostscript ------------------------------------------------
+# --- Tesseract (OCR engine; rasterization uses pypdfium2 in the exe) ---------
 function Install-ChocoIfNeeded {
     if (Get-Command choco -ErrorAction SilentlyContinue) { return }
     Write-Step "Install Chocolatey (package manager)"
@@ -150,50 +150,11 @@ function Copy-TesseractTree {
     return (Test-Path (Join-Path $dest "tesseract.exe"))
 }
 
-function Copy-GhostscriptTree {
-    param([string[]]$SearchRoots)
-
-    $exe = $null
-    foreach ($root in $SearchRoots) {
-        if (-not $root -or -not (Test-Path $root)) { continue }
-        foreach ($name in @("gswin64c.exe", "gswin32c.exe")) {
-            $found = Get-ChildItem -Path $root -Filter $name -Recurse -ErrorAction SilentlyContinue |
-                Select-Object -First 1
-            if ($found) {
-                $exe = $found
-                break
-            }
-        }
-        if ($exe) { break }
-    }
-    if (-not $exe) { return $false }
-
-    # Prefer the Ghostscript version root (parent of bin).
-    $binDir = $exe.Directory.FullName
-    $gsRoot = if ($binDir.ToLower().EndsWith("\bin")) {
-        (Resolve-Path (Join-Path $binDir "..")).Path
-    } else {
-        $binDir
-    }
-
-    $dest = Join-Path $StageDir "ghostscript"
-    Write-Host "  Copying Ghostscript from $gsRoot"
-    if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
-    New-Item -ItemType Directory -Path $dest -Force | Out-Null
-    Copy-Item -Path (Join-Path $gsRoot "*") -Destination $dest -Recurse -Force
-    return $true
-}
-
 New-Item -ItemType Directory -Path $ToolsCache -Force | Out-Null
 
 $tessSearch = @(
     "C:\Program Files\Tesseract-OCR"
     "C:\Program Files (x86)\Tesseract-OCR"
-    $ToolsCache
-)
-$gsSearch = @(
-    "C:\Program Files\gs"
-    "C:\Program Files (x86)\gs"
     $ToolsCache
 )
 
@@ -211,21 +172,7 @@ if (-not (Copy-TesseractTree -SearchRoots $tessSearch)) {
     }
 }
 
-Write-Step "Locate or install Ghostscript"
-if (-not (Copy-GhostscriptTree -SearchRoots $gsSearch)) {
-    if ($SkipInstallDeps) {
-        throw "Ghostscript not found and -SkipInstallDeps was set"
-    }
-    Install-ChocoIfNeeded
-    choco install ghostscript -y --no-progress
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
-                [System.Environment]::GetEnvironmentVariable("Path", "User")
-    if (-not (Copy-GhostscriptTree -SearchRoots $gsSearch)) {
-        throw "Failed to stage Ghostscript after choco install"
-    }
-}
-
-# Sanity checks
+# Sanity checks (Ghostscript is no longer staged — OCR uses pypdfium2 in the exe)
 $mustExist = @(
     (Join-Path $StageDir "coversheets.exe")
     (Join-Path $StageDir "tesseract\tesseract.exe")
@@ -233,28 +180,6 @@ $mustExist = @(
 )
 foreach ($p in $mustExist) {
     if (-not (Test-Path $p)) { throw "Missing staged file: $p" }
-}
-$gsOk = Get-ChildItem (Join-Path $StageDir "ghostscript") -Filter "gswin*.exe" -Recurse -ErrorAction SilentlyContinue |
-    Select-Object -First 1
-if (-not $gsOk) { throw "Ghostscript CLI not found under dist\windows-full\ghostscript" }
-
-# Portable Ghostscript needs lib/ (and usually gsdll*.dll) so jbig2dec can
-# decode scanned PDFs that use /JBIG2Decode. A bin-only copy is not enough.
-$gsLib = Join-Path $StageDir "ghostscript\lib"
-if (-not (Test-Path $gsLib)) {
-    # Some layouts nest version dirs; accept any lib folder under ghostscript.
-    $gsLib = Get-ChildItem (Join-Path $StageDir "ghostscript") -Filter "lib" -Directory -Recurse -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if (-not $gsLib) {
-        throw "Ghostscript lib/ folder missing under dist\windows-full\ghostscript (needed for JBIG2/jbig2dec)"
-    }
-}
-$gsDll = Get-ChildItem (Join-Path $StageDir "ghostscript") -Filter "gsdll*.dll" -Recurse -ErrorAction SilentlyContinue |
-    Select-Object -First 1
-if (-not $gsDll) {
-    Write-Warning "gsdll*.dll not found under staged Ghostscript; JBIG2 decode may fail on some systems"
-} else {
-    Write-Host "  Ghostscript DLL: $($gsDll.FullName)"
 }
 
 Write-Host "Staged payload:"

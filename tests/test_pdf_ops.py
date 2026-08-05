@@ -85,13 +85,15 @@ def test_run_ocr_calls_ocrmypdf(tmp_path: Path) -> None:
     assert kwargs["language"] == "eng"
     assert kwargs["skip_text"] is True
     assert kwargs["optimize"] == 0
+    assert kwargs["rasterizer"] == "pypdfium"
+    assert kwargs["output_type"] == "pdf"
 
 
-def test_run_ocr_annotates_jbig2dec_failure(tmp_path: Path) -> None:
+def test_run_ocr_annotates_jbig2_failure(tmp_path: Path) -> None:
     path = _one_page_pdf(tmp_path / "scan.pdf")
     fake_mod = MagicMock()
     fake_mod.ocr.side_effect = RuntimeError(
-        "This version of Ghostscript was compiled without the jbig2dec library"
+        "Failed to decode JBIG2 image stream on page 1"
     )
 
     with (
@@ -101,4 +103,21 @@ def test_run_ocr_annotates_jbig2dec_failure(tmp_path: Path) -> None:
     ):
         run_ocr(path)
 
-    assert "jbig2dec" in str(ei.value).lower()
+    msg = str(ei.value).lower()
+    assert "jbig2" in msg
+    assert "pypdfium2" in msg
+
+
+def test_run_ocr_annotates_pypdfium_failure(tmp_path: Path) -> None:
+    path = _one_page_pdf(tmp_path / "scan.pdf")
+    fake_mod = MagicMock()
+    fake_mod.ocr.side_effect = RuntimeError("pypdfium2 is not installed")
+
+    with (
+        patch("coversheets.pdf_ops.ocr_available", return_value=True),
+        patch.dict("sys.modules", {"ocrmypdf": fake_mod}),
+        pytest.raises(RuntimeError, match="pypdfium2") as ei,
+    ):
+        run_ocr(path)
+
+    assert "coversheets[ocr]" in str(ei.value)

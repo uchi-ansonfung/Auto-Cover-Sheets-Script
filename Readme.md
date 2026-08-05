@@ -4,7 +4,7 @@
 
 Add letter-sized cover sheets to PDFs. Primary UX is a **GUI list** (edit labels, generate with progress). Headless batch mode remains available for scripts.
 
-**v0.10.1** — GUI rebuilt with CustomTkinter (modern layout, light/dark theme, custom job list); added vertical positioning options.
+**v0.11.0** — OCR uses pypdfium2 (OCRmyPDF 17+); Ghostscript no longer required or bundled in the Windows full installer.
 
 ## Install (from source)
 
@@ -17,7 +17,7 @@ pip install -e ".[dev]"
 Optional extras:
 
 ```bash
-pip install -e ".[ocr]"        # ocrmypdf (also install system Tesseract)
+pip install -e ".[ocr]"        # ocrmypdf + pypdfium2 (also install system Tesseract)
 pip install -e ".[optimize]"   # pikepdf for linearize + thorough metadata strip
 pip install -e ".[full]"       # both
 ```
@@ -38,7 +38,7 @@ pip install -r requirements.txt
    | `coversheets-<version>-windows-x64.exe` | Portable slim Windows app (no bundled OCR engines) |
    | `coversheets-<version>-macos-arm64` | macOS Apple Silicon |
 
-2. **Windows full installer:** run the setup, accept the defaults (per-user install, Start Menu shortcut). Launch from the Start Menu. OCR (English) and Linearize work out of the box — no Python, Tesseract, or Ghostscript install.
+2. **Windows full installer:** run the setup, accept the defaults (per-user install, Start Menu shortcut). Launch from the Start Menu. OCR (English) and Linearize work out of the box — no Python or Tesseract install (Ghostscript is not required).
 3. **Slim / portable / macOS:** double-click the binary. Windows SmartScreen may require More info → Run anyway. macOS: right-click → Open the first time (unsigned builds are blocked by Gatekeeper).
 
 ## Usage (GUI list — default)
@@ -138,7 +138,7 @@ coversheets/
   cover.py            # cover sheet generation (ReportLab)
   merge.py            # prepend cover + write
   pdf_ops.py          # metadata strip, OCR, optimize, linearize
-  bundled_tools.py    # frozen/installer Tesseract + Ghostscript PATH
+  bundled_tools.py    # frozen/installer Tesseract PATH (optional legacy GS)
   options.py          # ProcessOptions
   prefs.py            # GUI preference persistence
   process.py          # JobItem + batch processing
@@ -155,7 +155,7 @@ Publishing a GitHub Release runs [`.github/workflows/release.yml`](.github/workf
 
 1. Runs tests on Windows + macOS (arm64)
 2. Builds slim one-file PyInstaller binaries
-3. Builds the **Windows full installer** (PyInstaller with `pikepdf` + `ocrmypdf`, staged Tesseract + Ghostscript, Inno Setup)
+3. Builds the **Windows full installer** (PyInstaller with `pikepdf` + `ocrmypdf` + `pypdfium2`, staged Tesseract, Inno Setup)
 4. Attaches assets:
    - `coversheets-<version>-windows-x64-setup.exe` ← preferred for end users
    - `coversheets-<version>-windows-x64.exe`
@@ -165,9 +165,9 @@ You can also run the workflow manually (**Actions → Release builds → Run wor
 
 ```bash
 # Tag and publish a release (example)
-git tag v0.10.1
-git push origin v0.10.1
-# Then create a Release from that tag in the GitHub UI (or: gh release create v0.10.1)
+git tag v0.11.0
+git push origin v0.11.0
+# Then create a Release from that tag in the GitHub UI (or: gh release create v0.11.0)
 ```
 
 ## Building locally (optional)
@@ -185,8 +185,8 @@ pyinstaller coversheets.spec
 
 Requirements: Windows, Python 3.10+, [Inno Setup 6](https://jrsoftware.org/isinfo.php), and either:
 
-- Chocolatey (script can install Tesseract, Ghostscript, Inno Setup), or
-- Those tools already installed so the script can copy them into the payload
+- Chocolatey (script can install Tesseract and Inno Setup), or
+- Those tools already installed so the script can copy Tesseract into the payload
 
 ```powershell
 python -m venv .venv
@@ -197,4 +197,5 @@ powershell -ExecutionPolicy Bypass -File scripts\build_windows_full.ps1
 # → dist\windows-full\   (staged payload used by Inno)
 ```
 
-The frozen app looks next to `coversheets.exe` for `tesseract\` and `ghostscript\` and puts them on `PATH` automatically (`coversheets/bundled_tools.py`). It also sets `GS_LIB` / `GS_DLL` for the portable Ghostscript tree so scanned PDFs that use JBIG2 (`/JBIG2Decode`) can be rasterized — that path needs Ghostscript’s bundled jbig2dec support, not the optional `jbig2enc` encoder.
+The frozen app looks next to `coversheets.exe` for `tesseract\` and puts it on `PATH` automatically (`coversheets/bundled_tools.py`). OCR rasterization uses **pypdfium2** (baked into the exe via OCRmyPDF 17+); Ghostscript is not required. Scanned PDFs that use JBIG2 (`/JBIG2Decode`) are handled by PDFium through pypdfium2.
+
