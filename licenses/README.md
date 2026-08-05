@@ -28,9 +28,14 @@ and the English traineddata files.
 
 ## Regenerate
 
+Not required on every PR. Run after dependency bumps, or rely on the Windows
+full-installer CI job (release / workflow_dispatch), which regenerates and
+uploads/attaches the SBOM. Committed files here are a baseline for offline reading.
+
 ```powershell
 pip install -e ".[full,dev]" cyclonedx-bom pip-licenses
 python scripts/generate_sbom.py
+# or: powershell -File scripts\generate_sbom.ps1
 ```
 
 ## Tools used
