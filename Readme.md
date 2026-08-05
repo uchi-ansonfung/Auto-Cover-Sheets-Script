@@ -129,6 +129,17 @@ pip install -e ".[dev]"
 pytest
 ```
 
+### Third-party licenses / SBOM
+
+A machine-assisted inventory lives under [`licenses/`](licenses/) (CycloneDX SBOM + notices). Regenerate after dependency changes with:
+
+```bash
+pip install -e ".[full,dev]" cyclonedx-bom pip-licenses
+python scripts/generate_sbom.py
+```
+
+CI regenerates the SBOM on **release / full Windows builds** only (not required on every PR). Committed files under `licenses/` are a baseline for offline reading.
+
 ### Layout
 
 ```
@@ -144,7 +155,8 @@ coversheets/
   process.py          # JobItem + batch processing
   cli.py              # argparse entry point
 installer/windows/    # Inno Setup script
-scripts/              # build_windows_full.ps1
+licenses/             # SBOM + third-party notices (see licenses/README.md)
+scripts/              # build_windows_full.ps1, generate_sbom.py
 tests/
 pyproject.toml
 ```
@@ -156,7 +168,8 @@ Publishing a GitHub Release runs [`.github/workflows/release.yml`](.github/workf
 1. Runs tests on Windows + macOS (arm64)
 2. Builds slim one-file PyInstaller binaries
 3. Builds the **Windows full installer** (PyInstaller with `pikepdf` + `ocrmypdf` + `pypdfium2`, staged Tesseract, Inno Setup)
-4. Attaches assets:
+4. Generates a **CycloneDX SBOM** + third-party license summary (workflow artifact; attached to the release)
+5. Attaches assets:
    - `coversheets-<version>-windows-x64-setup.exe` ← preferred for end users
    - `coversheets-<version>-windows-x64.exe`
    - `coversheets-<version>-macos-arm64`
