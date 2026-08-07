@@ -5,7 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from coversheets.process import BatchResult, JobItem
-from coversheets.util import format_result_summary, resolve_result_folders
+from coversheets.util import format_result_summary, resolve_app_asset, resolve_result_folders
+
+
+def test_resolve_app_asset_finds_icon() -> None:
+    png = resolve_app_asset("app-icon.png")
+    ico = resolve_app_asset("app-icon.ico")
+    assert png is not None and png.is_file()
+    assert ico is not None and ico.is_file()
+    assert resolve_app_asset("definitely-missing-icon-xyz.xyz") is None
 
 
 def test_format_result_summary() -> None:

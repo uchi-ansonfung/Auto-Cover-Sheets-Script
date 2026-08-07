@@ -39,7 +39,7 @@ from coversheets.process import (
     jobs_from_paths,
     process_jobs,
 )
-from coversheets.util import format_result_summary, resolve_result_folders
+from coversheets.util import format_result_summary, resolve_app_asset, resolve_result_folders
 
 
 class _CoverSheetsAppBase(ctk.CTk):
@@ -47,6 +47,32 @@ class _CoverSheetsAppBase(ctk.CTk):
 
 
 CoverSheetsAppRoot = make_dnd_root(_CoverSheetsAppBase)
+
+
+def _apply_window_icon(window: ctk.CTk) -> None:
+    """Set taskbar/title-bar icon when assets are present; never raise."""
+    try:
+        ico = resolve_app_asset("app-icon.ico")
+        png = resolve_app_asset("app-icon.png")
+        # Windows: .ico is most reliable for the taskbar/title bar.
+        if sys.platform == "win32" and ico is not None:
+            try:
+                window.iconbitmap(default=str(ico))
+            except tk.TclError:
+                pass
+        if png is not None:
+            # Keep a reference so Tk does not garbage-collect the image.
+            photo = tk.PhotoImage(file=str(png))
+            window.iconphoto(True, photo)
+            window._app_icon_photo = photo  # type: ignore[attr-defined]
+        elif ico is not None and sys.platform != "win32":
+            try:
+                window.iconbitmap(str(ico))
+            except tk.TclError:
+                pass
+    except Exception:
+        # Icon is cosmetic — never block startup.
+        return
 
 
 class CoverSheetsApp(CoverSheetsAppRoot):  # type: ignore[misc, valid-type]
@@ -58,6 +84,7 @@ class CoverSheetsApp(CoverSheetsAppRoot):  # type: ignore[misc, valid-type]
         configure_bundled_tools()
         self.title(f"Automatic Exhibit Cover Sheets v{__version__}")
         self.minsize(920, 560)
+        _apply_window_icon(self)
 
         self._prefs = load_preferences()
         self._prefs_path: Path | None = None

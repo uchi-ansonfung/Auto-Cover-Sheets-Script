@@ -4,7 +4,7 @@
 
 Add letter-sized cover sheets to PDFs. Primary UX is a **GUI list** (edit labels, generate with progress). Headless batch mode remains available for scripts.
 
-**v0.11.1** — CI no longer installs Ghostscript when building the Windows full installer (OCR uses pypdfium2).
+**v0.11.2** — App icon for the Windows exe, installer, and GUI window.
 
 ## Install (from source)
 
@@ -178,9 +178,9 @@ You can also run the workflow manually (**Actions → Release builds → Run wor
 
 ```bash
 # Tag and publish a release (example)
-git tag v0.11.1
-git push origin v0.11.1
-# Then create a Release from that tag in the GitHub UI (or: gh release create v0.11.1)
+git tag v0.11.2
+git push origin v0.11.2
+# Then create a Release from that tag in the GitHub UI (or: gh release create v0.11.2)
 ```
 
 ## Building locally (optional)

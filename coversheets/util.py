@@ -11,6 +11,30 @@ from typing import Sequence
 from coversheets.process import BatchResult, JobItem
 
 
+def resolve_app_asset(name: str) -> Path | None:
+    """
+    Locate a packaged asset under assets/ for dev installs and frozen builds.
+
+    Returns None when the file is missing (callers should fail soft).
+    """
+    candidates: list[Path] = []
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(Path(meipass) / "assets" / name)
+    # coversheets/util.py → repo root is parents[1] when running from source tree.
+    package_root = Path(__file__).resolve().parent
+    candidates.append(package_root.parent / "assets" / name)
+    # Fallback: cwd-relative (e.g. running from repo root in odd layouts).
+    candidates.append(Path.cwd() / "assets" / name)
+    for path in candidates:
+        try:
+            if path.is_file():
+                return path
+        except OSError:
+            continue
+    return None
+
+
 def open_in_file_manager(path: Path) -> None:
     """Open a folder (or its parent if a file) in the OS file manager."""
     target = path.expanduser().resolve()

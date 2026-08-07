@@ -29,7 +29,7 @@
 | chardet                   | 5.2.0       | GNU Lesser General Public License v2 or later (LGPLv2+)        | https://github.com/chardet/chardet                                   |
 | img2pdf                   | 0.6.3       | GNU Lesser General Public License v3 (LGPLv3)                  | UNKNOWN                                                              |
 | pi_heif                   | 1.4.0       | GNU Lesser General Public License v3 (LGPLv3)                  | https://github.com/bigcat88/pillow_heif                              |
-| coversheets               | 0.11.1      | GPL-3.0-or-later                                               | https://github.com/uchi-ansonfung/Auto-Cover-Sheets-Script           |
+| coversheets               | 0.11.2      | GPL-3.0-or-later                                               | https://github.com/uchi-ansonfung/Auto-Cover-Sheets-Script           |
 | isoduration               | 20.11.0     | ISC License (ISCL)                                             | https://github.com/bolsote/isoduration                               |
 | fpdf2                     | 2.8.7       | LGPL-3.0-only                                                  | https://py-pdf.github.io/fpdf2/                                      |
 | annotated-types           | 0.8.0       | MIT                                                            | https://github.com/annotated-types/annotated-types                   |

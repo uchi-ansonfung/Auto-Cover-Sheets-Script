@@ -53,6 +53,12 @@ def _try_collect(package: str) -> None:
 _try_collect("customtkinter")
 _try_collect("tkinterdnd2")
 
+# App icon for the GUI window (exe file icon is set on EXE below).
+datas += [
+    ("assets/app-icon.png", "assets"),
+    ("assets/app-icon.ico", "assets"),
+]
+
 # Optional extras — only present for full installer / local .[full] builds.
 _try_collect("pikepdf")
 _try_collect("ocrmypdf")
@@ -105,4 +111,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon="assets/app-icon.ico",
 )
