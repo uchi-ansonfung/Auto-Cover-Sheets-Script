@@ -4,7 +4,9 @@
 
 Add letter-sized cover sheets to PDFs. Primary UX is a **GUI list** (edit labels, generate with progress). Headless batch mode remains available for scripts.
 
-**v0.11.2** — App icon for the Windows exe, installer, and GUI window.
+<a href="https://get.microsoft.com/installer/download/9NC7CSQ5K9H6?referrer=appbadge" target="_self" >
+	<img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200"/>
+</a>
 
 ## Install (from source)
 
